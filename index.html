@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08d4ad" />
+    <meta
+      name="description"
+      content="Offline-first USDT perpetual futures position sizing, fee, risk, liquidation, and trade planning calculator."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="./assets/icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Crypto Futures TradeMath</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#calculator">Skip to calculator</a>
+
+    <header class="app-header">
+      <a class="brand" href="./" aria-label="Crypto Futures TradeMath home">
+        <img src="./assets/icons/icon-192.png" alt="" width="44" height="44" />
+        <span>
+          <strong>Crypto Futures</strong>
+          <span>TradeMath</span>
+        </span>
+      </a>
+
+      <nav class="header-actions" aria-label="Application">
+        <button id="installButton" class="nav-button is-hidden" type="button">
+          <span aria-hidden="true">↓</span>
+          <span data-i18n="install">Install</span>
+        </button>
+        <button id="historyButton" class="nav-button" type="button">
+          <span data-i18n="history">History</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <a
+          class="nav-button"
+          href="https://crypto-trade-journalzipzip--ridelrival98.replit.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span data-i18n="journal">Journal</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+        <button id="languageButton" class="language-button" type="button" aria-haspopup="dialog">
+          <span aria-hidden="true">◎</span>
+          <span id="activeLanguage">EN</span>
+        </button>
+        <button id="themeButton" class="theme-button" type="button" aria-haspopup="dialog">
+          <span id="themeIcon" aria-hidden="true">☾</span>
+          <span id="activeTheme">Dark</span>
+        </button>
+      </nav>
+    </header>
+
+    <main id="calculator" class="app-shell">
+      <section class="attention-banner" aria-label="Risk reminder">
+        <span aria-hidden="true">⚠</span>
+        <span data-i18n="planReminder">
+          Attention! Make sure you already have a trade plan before using this calculator.
+        </span>
+      </section>
+
+      <noscript>
+        <section class="alert alert-error">
+          JavaScript is required for this calculator. / Kalkulator ini memerlukan JavaScript.
+        </section>
+      </noscript>
+
+      <div class="workspace">
+        <form id="tradeForm" class="input-column" novalidate>
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow" data-i18n="tradePlan">Trade plan</p>
+                <h1 data-i18n="parameters">Parameters</h1>
+              </div>
+              <span class="status-pill" id="calculationStatus" data-i18n="ready">Ready</span>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span data-i18n="accountBalance">Account balance</span>
+                <span class="input-shell">
+                  <span class="prefix">$</span>
+                  <input id="balance" name="balance" type="text" value="" inputmode="decimal" autocomplete="off" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span data-i18n="risk">Risk</span>
+                <span class="input-shell">
+                  <input id="riskValue" name="riskValue" type="text" value="" inputmode="decimal" autocomplete="off" />
+                  <select id="riskUnit" name="riskUnit" class="inline-select compact-select" aria-label="Risk unit">
+                    <option value="percent">%</option>
+                    <option value="amount">$</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="field">
+                <span data-i18n="leverage">Leverage</span>
+                <span class="input-shell">
+                  <input id="leverage" name="leverage" type="text" value="" inputmode="decimal" autocomplete="off" />
+                  <span class="suffix">×</span>
+                </span>
+              </label>
+
+              <label class="field">
+                <span data-i18n="symbol">Symbol</span>
+                <span class="input-shell">
+                  <input id="symbol" name="symbol" type="text" value="" spellcheck="false" autocomplete="off" />
+                  <select id="quoteCurrency" name="quoteCurrency" class="inline-select quote-select" aria-label="Quote currency">
+                    <option value="USDT">USDT</option>
+                    <option value="USDC">USDC</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="field">
+                <span data-i18n="entryPrice">Entry price</span>
+                <span class="input-shell">
+                  <input id="entryPrice" name="entryPrice" type="text" value="" inputmode="decimal" autocomplete="off" />
+                </span>
+              </label>
+
+              <label class="field field-stop">
+                <span data-i18n="stopLoss">Stop loss</span>
+                <span class="input-shell">
+                  <input id="stopLoss" name="stopLoss" type="text" value="" inputmode="decimal" autocomplete="off" />
+                </span>
+              </label>
+            </div>
+            <p class="number-format-note" data-i18n="numberFormatHint">
+              International number formats are accepted and normalized after you leave a field.
+            </p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow" data-i18n="venueCosts">Venue & costs</p>
+                <h2 data-i18n="exchangeExecution">Exchange & execution</h2>
+              </div>
+              <span id="feeVerifiedBadge" class="verified-badge">Verified 2026-07-23</span>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span data-i18n="exchange">Exchange</span>
+                <select id="exchange" name="exchange">
+                  <option value="binance">Binance USDⓈ-M</option>
+                  <option value="bybit">Bybit USDT Perp</option>
+                  <option value="okx" selected>OKX USDT-M</option>
+                  <option value="other" data-i18n="otherExchange">Other exchange</option>
+                </select>
+              </label>
+
+              <label id="otherExchangeField" class="field is-hidden">
+                <span data-i18n="otherExchange">Other exchange</span>
+                <select id="otherExchange" name="otherExchange">
+                  <option value="gate">Gate.io</option>
+                  <option value="bitget">Bitget</option>
+                  <option value="mexc">MEXC</option>
+                  <option value="hyperliquid">Hyperliquid</option>
+                  <option value="aster">Aster</option>
+                  <option value="lighter">Lighter</option>
+                  <option value="custom" data-i18n="customManual">Custom / Manual</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span data-i18n="feeTier">Fee tier</span>
+                <select id="feeTier" name="feeTier">
+                  <option value="standard" data-i18n="standardTier">Standard / VIP 0</option>
+                  <option value="custom" data-i18n="customRates">Custom rates</option>
+                </select>
+              </label>
+
+              <div class="fee-rate-pair" aria-live="polite">
+                <span>
+                  <small data-i18n="maker">Maker</small>
+                  <strong id="makerFeeDisplay">0.0200%</strong>
+                </span>
+                <span>
+                  <small data-i18n="taker">Taker</small>
+                  <strong id="takerFeeDisplay">0.0500%</strong>
+                </span>
+              </div>
+
+              <label class="field">
+                <span data-i18n="entryExecution">Entry execution</span>
+                <select id="entryExecution" name="entryExecution">
+                  <option value="taker" data-i18n="takerMarket">Taker / Market</option>
+                  <option value="maker" data-i18n="makerPostOnly">Maker / Post-only</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span data-i18n="stopExecution">Stop execution</span>
+                <select id="stopExecution" name="stopExecution">
+                  <option value="stop-market" data-i18n="stopMarketRecommended">Stop-Market / Recommended</option>
+                  <option value="stop-limit" data-i18n="stopLimit">Stop-Limit</option>
+                </select>
+              </label>
+
+              <label id="stopLimitField" class="field is-hidden">
+                <span data-i18n="stopLimitPrice">Stop limit price</span>
+                <span class="input-shell">
+                  <input id="stopLimitPrice" name="stopLimitPrice" type="text" value="" inputmode="decimal" autocomplete="off" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span data-i18n="targetExecution">Target execution</span>
+                <select id="targetExecution" name="targetExecution">
+                  <option value="maker" data-i18n="makerPostOnly">Maker / Post-only</option>
+                  <option value="taker" data-i18n="takerMarket">Taker / Market</option>
+                </select>
+              </label>
+            </div>
+
+            <div id="customFeeFields" class="field-grid custom-fees is-hidden">
+              <label class="field">
+                <span data-i18n="makerFee">Maker fee</span>
+                <span class="input-shell">
+                  <input id="makerFee" name="makerFee" type="text" value="0.02" inputmode="decimal" autocomplete="off" />
+                  <span class="suffix">%</span>
+                </span>
+              </label>
+              <label class="field">
+                <span data-i18n="takerFee">Taker fee</span>
+                <span class="input-shell">
+                  <input id="takerFee" name="takerFee" type="text" value="0.05" inputmode="decimal" autocomplete="off" />
+                  <span class="suffix">%</span>
+                </span>
+              </label>
+            </div>
+
+            <p class="source-note">
+              <span id="feeSourceText">OKX contract fee calculation</span>
+              <a id="feeSourceLink" href="https://www.binance.com/en/fee/futureFee" target="_blank" rel="noopener noreferrer">
+                <span data-i18n="verifyRate">Verify your rate</span> ↗
+              </a>
+            </p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow" data-i18n="exitPlan">Exit plan</p>
+                <h2 data-i18n="takeProfitTargets">Take-profit targets</h2>
+              </div>
+              <span id="allocationTotal" class="allocation-pill">100%</span>
+            </div>
+
+            <div class="targets-header" aria-hidden="true">
+              <span data-i18n="target">Target</span>
+              <span data-i18n="price">Price</span>
+              <span data-i18n="allocation">Allocation</span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input type="checkbox" checked disabled />
+                <span>TP1</span>
+              </label>
+              <input id="tp1Price" name="tp1Price" aria-label="TP1 price" type="text" value="" inputmode="decimal" autocomplete="off" />
+              <span class="input-shell allocation-input">
+                <input id="tp1Allocation" name="tp1Allocation" aria-label="TP1 allocation" type="text" value="100" inputmode="decimal" autocomplete="off" />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input id="tp2Enabled" name="tp2Enabled" type="checkbox" />
+                <span>TP2</span>
+              </label>
+              <input id="tp2Price" name="tp2Price" aria-label="TP2 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
+              <span class="input-shell allocation-input">
+                <input id="tp2Allocation" name="tp2Allocation" aria-label="TP2 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input id="tp3Enabled" name="tp3Enabled" type="checkbox" />
+                <span>TP3</span>
+              </label>
+              <input id="tp3Price" name="tp3Price" aria-label="TP3 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
+              <span class="input-shell allocation-input">
+                <input id="tp3Allocation" name="tp3Allocation" aria-label="TP3 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+          </section>
+
+          <details class="panel details-panel">
+            <summary>
+              <span>
+                <span class="eyebrow" data-i18n="advanced">Advanced</span>
+                <strong data-i18n="executionCostsRules">Execution Costs & Exchange Rules</strong>
+                <small id="advancedSummaryStatus" data-i18n="includedInCalculation">Included in calculation</small>
+              </span>
+              <span class="summary-actions">
+                <button
+                  id="advancedToggle"
+                  class="advanced-switch active"
+                  type="button"
+                  role="switch"
+                  aria-checked="true"
+                  aria-label="Toggle advanced calculations"
+                >
+                  <span class="switch-track"><span class="switch-thumb"></span></span>
+                  <strong id="advancedToggleText">ON</strong>
+                </button>
+                <span class="summary-arrow" aria-hidden="true">⌄</span>
+              </span>
+            </summary>
+
+            <div class="details-content">
+              <div id="advancedOffNote" class="advanced-off-note is-hidden">
+                <strong data-i18n="advancedOffTitle">Simplified calculation is active</strong>
+                <span data-i18n="advancedOffBody">Slippage, funding, and exchange rounding are excluded. Isolated liquidation and leverage safety checks remain active.</span>
+              </div>
+
+              <section class="advanced-section">
+                <div class="advanced-section-heading">
+                  <div>
+                    <span class="eyebrow" data-i18n="executionCosts">Execution costs</span>
+                    <h3 data-i18n="slippageEstimate">Slippage estimate</h3>
+                  </div>
+                  <small data-i18n="limitSlippageHelper">Post-Only entry and target orders use 0% slippage automatically.</small>
+                </div>
+                <div class="field-grid compact-grid">
+                  <label class="field">
+                  <span data-i18n="entrySlippage">Entry slippage</span>
+                  <span class="input-shell">
+                    <input id="entrySlippage" name="entrySlippage" type="text" value="0.02" inputmode="decimal" autocomplete="off" />
+                    <span class="suffix">%</span>
+                  </span>
+                  </label>
+                  <label class="field">
+                  <span data-i18n="stopSlippage">Stop slippage</span>
+                  <span class="input-shell">
+                    <input id="stopSlippage" name="stopSlippage" type="text" value="0.03" inputmode="decimal" autocomplete="off" />
+                    <span class="suffix">%</span>
+                  </span>
+                  </label>
+                  <label class="field">
+                  <span data-i18n="targetSlippage">Target slippage</span>
+                  <span class="input-shell">
+                    <input id="targetSlippage" name="targetSlippage" type="text" value="0.01" inputmode="decimal" autocomplete="off" />
+                    <span class="suffix">%</span>
+                  </span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="advanced-section">
+                <div class="advanced-section-heading">
+                  <div>
+                    <span class="eyebrow" data-i18n="fundingSection">Funding</span>
+                    <h3 data-i18n="fundingPlan">Funding plan</h3>
+                  </div>
+                </div>
+                <div class="field-grid compact-grid">
+                  <label class="field">
+                    <span data-i18n="crossFundingTime">Will this position cross a funding time?</span>
+                    <select id="fundingEnabled" name="fundingEnabled">
+                      <option value="no" data-i18n="no">No</option>
+                      <option value="yes" data-i18n="yes">Yes</option>
+                    </select>
+                  </label>
+                  <label class="field funding-dependent is-hidden">
+                    <span data-i18n="fundingRate">Funding rate / interval</span>
+                    <span class="input-shell">
+                      <input id="fundingRate" name="fundingRate" type="text" value="0" inputmode="decimal" autocomplete="off" />
+                      <span class="suffix">%</span>
+                    </span>
+                  </label>
+                  <label class="field funding-dependent is-hidden">
+                    <span data-i18n="fundingIntervals">Funding intervals held</span>
+                    <span class="input-shell">
+                      <input id="fundingIntervals" name="fundingIntervals" type="text" value="1" inputmode="numeric" autocomplete="off" />
+                      <span class="suffix">×</span>
+                    </span>
+                  </label>
+                  <div class="field action-field funding-dependent is-hidden">
+                    <span data-i18n="fundingOnline">Online funding</span>
+                    <button id="fetchFundingButton" class="secondary-button" type="button" data-i18n="fetchFunding">
+                      Fetch current rate
+                    </button>
+                  </div>
+                </div>
+                <p class="helper" data-i18n="fundingHelper">
+                  Positive funding usually means longs pay shorts. Credits never increase calculated position size.
+                </p>
+              </section>
+
+              <section class="advanced-section">
+                <div class="advanced-section-heading specs-heading">
+                  <div>
+                    <span class="eyebrow" data-i18n="exchangeRules">Exchange rules</span>
+                    <h3 data-i18n="contractSpecifications">Contract specifications</h3>
+                  </div>
+                  <span id="specStatus" class="spec-status unverified" data-i18n="specsWaiting">Waiting for symbol</span>
+                </div>
+
+                <div class="specs-toolbar">
+                  <label class="field">
+                    <span data-i18n="specificationMode">Specification mode</span>
+                    <select id="specMode" name="specMode">
+                      <option value="auto" data-i18n="autoFromExchange">Auto from exchange</option>
+                      <option value="manual" data-i18n="manualOverride">Manual override</option>
+                    </select>
+                  </label>
+                  <button id="loadSpecsButton" class="secondary-button" type="button" data-i18n="loadSpecifications">Load specifications</button>
+                  <a id="specSourceLink" class="spec-source is-hidden" href="#" target="_blank" rel="noopener noreferrer">
+                    <span data-i18n="viewSource">View source</span> ↗
+                  </a>
+                </div>
+
+                <div class="field-grid compact-grid contract-fields">
+                  <label class="field">
+                    <span data-i18n="orderQuantityUnit">Order quantity unit</span>
+                    <select id="quantityMode" name="quantityMode">
+                      <option value="base" data-i18n="baseCoin">Base coin</option>
+                      <option value="contracts" data-i18n="contracts">Contracts</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="contractSize">Contract size in base coin</span>
+                    <span class="input-shell">
+                      <input id="contractSize" name="contractSize" type="text" value="" inputmode="decimal" autocomplete="off" />
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="maintenanceMargin">Maintenance margin rate</span>
+                    <span class="input-shell">
+                      <input id="maintenanceMargin" name="maintenanceMargin" type="text" value="0.4" inputmode="decimal" autocomplete="off" />
+                      <span class="suffix">%</span>
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="quantityStep">Quantity / contract step</span>
+                    <span class="input-shell">
+                      <input id="quantityStep" name="quantityStep" type="text" value="" inputmode="decimal" autocomplete="off" />
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="priceTick">Price tick</span>
+                    <span class="input-shell">
+                      <input id="priceTick" name="priceTick" type="text" value="" inputmode="decimal" autocomplete="off" />
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="minimumQuantity">Minimum order quantity</span>
+                    <span class="input-shell">
+                      <input id="minimumQuantity" name="minimumQuantity" type="text" value="" inputmode="decimal" autocomplete="off" />
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="minimumNotional">Minimum notional</span>
+                    <span class="input-shell">
+                      <span class="prefix">$</span>
+                      <input id="minimumNotional" name="minimumNotional" type="text" value="" inputmode="decimal" autocomplete="off" />
+                    </span>
+                  </label>
+                </div>
+                <p id="specsHelper" class="helper" data-i18n="specsHelper">
+                  Auto mode uses public exchange instrument data and never requests an API key. Verify the final order quantity on the exchange.
+                </p>
+              </section>
+            </div>
+          </details>
+        </form>
+
+        <section class="results-column" aria-label="Trade calculation results">
+          <div id="alerts" class="alerts" aria-live="polite" aria-atomic="false"></div>
+
+          <div class="trade-controls">
+            <span class="direction-copy">
+              <span class="control-label" data-i18n="typeOfTrade">Type of trade</span>
+              <small id="autoDirectionHint" data-i18n="waitingDirection">Waiting for entry & stop</small>
+            </span>
+            <div class="segmented-control" role="status" aria-live="polite" aria-label="Trade direction">
+              <button id="longButton" type="button" data-side="long" tabindex="-1" aria-disabled="true">
+                <span aria-hidden="true">↑</span>
+                <span data-i18n="long">Long</span>
+              </button>
+              <button id="shortButton" type="button" data-side="short" tabindex="-1" aria-disabled="true">
+                <span aria-hidden="true">↓</span>
+                <span data-i18n="short">Short</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="context-strip">
+            <span>
+              <small data-i18n="sizingMode">Sizing mode</small>
+              <strong data-i18n="netRiskAtStop">Net risk at stop</strong>
+            </span>
+            <span>
+              <small data-i18n="marginMode">Margin mode</small>
+              <strong data-i18n="isolatedOnly">Isolated only</strong>
+            </span>
+            <span>
+              <small data-i18n="settlement">Settlement</small>
+              <strong id="settlementValue">USDT</strong>
+            </span>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span data-i18n="marginCost">Margin cost</span>
+              <strong id="marginCostValue">$—</strong>
+              <small id="marginUsageValue">—</small>
+            </article>
+            <article class="metric-card">
+              <span data-i18n="executableQuantity">Executable rounded quantity</span>
+              <strong id="coinSizeValue">—</strong>
+              <small id="rawSizeValue">Raw coin: —</small>
+            </article>
+            <article class="metric-card">
+              <span data-i18n="positionAmount">Amount of position</span>
+              <strong id="positionValue">$—</strong>
+              <small data-i18n="totalNotional">Total position size</small>
+            </article>
+
+            <article class="metric-card">
+              <span data-i18n="grossRR">Gross R:R</span>
+              <strong id="grossRRValue">1:—</strong>
+              <small data-i18n="beforeCosts">Before costs</small>
+            </article>
+            <article class="metric-card featured">
+              <span data-i18n="netRR">Net R:R</span>
+              <strong id="netRRValue">1:—</strong>
+              <small data-i18n="afterCosts">After estimated costs</small>
+            </article>
+            <article class="metric-card risk-card">
+              <span data-i18n="netRisk">Net risk</span>
+              <strong id="netRiskValue">−$—</strong>
+              <small id="riskAccountValue">—</small>
+            </article>
+
+            <article class="metric-card profit-card">
+              <span data-i18n="netProfit">Net potential profit</span>
+              <strong id="netProfitValue">+$—</strong>
+              <small id="profitAccountValue">—% of account</small>
+            </article>
+            <article class="metric-card profit-card">
+              <span data-i18n="netROE">Net return on margin</span>
+              <strong id="netROEValue">—%</strong>
+              <small data-i18n="estimatedROE">Estimated ROE</small>
+            </article>
+            <article class="metric-card liquidation-card">
+              <span data-i18n="isolatedLiquidation">Est. liq price (isolated)</span>
+              <strong id="liquidationValue">$—</strong>
+              <small data-i18n="estimateOnly">Estimate only — verify on exchange</small>
+            </article>
+          </div>
+
+          <details class="result-details" open>
+            <summary>
+              <span data-i18n="advancedResults">Advanced results</span>
+              <span class="summary-arrow" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="secondary-metrics">
+              <div><span data-i18n="grossRisk">Gross price risk</span><strong id="grossRiskValue">$—</strong></div>
+              <div><span data-i18n="grossProfit">Gross potential profit</span><strong id="grossProfitValue">$—</strong></div>
+              <div><span data-i18n="grossROE">Gross ROE</span><strong id="grossROEValue">—%</strong></div>
+              <div><span data-i18n="totalFees">Estimated trading fees</span><strong id="feesValue">$—</strong></div>
+              <div><span data-i18n="totalSlippage">Estimated slippage</span><strong id="slippageValue">$—</strong></div>
+              <div><span data-i18n="funding">Estimated funding</span><strong id="fundingValue">$—</strong></div>
+              <div><span data-i18n="breakEven">Break-even price</span><strong id="breakEvenValue">$—</strong></div>
+              <div><span data-i18n="breakEvenWinRate">Break-even win rate</span><strong id="winRateValue">—%</strong></div>
+              <div><span data-i18n="effectiveLeverage">Effective account leverage</span><strong id="effectiveLeverageValue">—×</strong></div>
+              <div><span data-i18n="freeBalance">Free balance after margin</span><strong id="freeBalanceValue">$—</strong></div>
+              <div><span data-i18n="maxEstimatedLeverage">Max estimated leverage</span><strong id="maxLeverageValue">—×</strong></div>
+              <div><span data-i18n="contractQuantity">Contract quantity</span><strong id="contractQuantityValue">—</strong></div>
+              <div><span data-i18n="crossMargin">Cross margin</span><strong data-i18n="crossUnsupported">Not supported — verify on exchange</strong></div>
+            </div>
+          </details>
+
+          <div class="action-bar">
+            <button id="resetButton" class="ghost-button" type="button" data-i18n="reset">Reset</button>
+            <button id="saveDraftButton" class="secondary-button" type="button" data-i18n="saveDraft">Save as draft</button>
+            <button id="saveTradeButton" class="primary-button" type="button" data-i18n="saveTrade">Save trade plan</button>
+          </div>
+
+          <section class="technical-note">
+            <h2 data-i18n="technicalNote">Technical note</h2>
+            <p data-i18n="technicalCopy">
+              This calculator is designed for one isolated-margin linear perpetual position. Its liquidation estimate excludes additional margin, other positions, cross-account equity, portfolio margin, and changing exchange risk tiers. Always verify the mark-price liquidation shown by the exchange.
+            </p>
+            <div class="note-links">
+              <a href="https://github.com/ridelrival/crypto-journal-data" target="_blank" rel="noopener noreferrer">
+                <span data-i18n="journalData">Journal data</span> ↗
+              </a>
+              <button id="downloadPlanButton" type="button" data-i18n="downloadPlan">Download current plan</button>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <dialog id="historyDialog" class="modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow" data-i18n="localPrivate">Local & private</p>
+          <h2 data-i18n="historyJournal">History & journal handoff</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="historyDialog" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-toolbar">
+        <button id="exportJsonButton" class="secondary-button" type="button">Export JSON</button>
+        <button id="exportCsvButton" class="secondary-button" type="button">Export CSV</button>
+        <label class="secondary-button file-button">
+          <span data-i18n="importJson">Import JSON</span>
+          <input id="importJsonInput" type="file" accept=".json,application/json" />
+        </label>
+        <a
+          class="primary-button"
+          href="https://crypto-trade-journalzipzip--ridelrival98.replit.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span data-i18n="openFullJournal">Open full journal</span> ↗
+        </a>
+      </div>
+      <p class="modal-note" data-i18n="historyStorageNote">
+        Plans are stored only in this browser. Export a backup before clearing browser data.
+      </p>
+      <div id="historyList" class="history-list"></div>
+      <div class="modal-footer">
+        <button id="clearHistoryButton" class="danger-button" type="button" data-i18n="clearHistory">Clear local history</button>
+      </div>
+    </dialog>
+
+    <dialog id="languageDialog" class="modal language-modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow" data-i18n="language">Language</p>
+          <h2 data-i18n="chooseLanguage">Choose your language</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="languageDialog" type="button" aria-label="Close">×</button>
+      </div>
+      <label class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <input id="languageSearch" type="search" placeholder="Search languages…" autocomplete="off" />
+      </label>
+      <div id="languageList" class="language-list" role="listbox" aria-label="Languages"></div>
+      <p class="modal-note" data-i18n="languageFallback">
+        English, Indonesian, and Japanese are available.
+      </p>
+    </dialog>
+
+    <dialog id="themeDialog" class="modal theme-modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow" data-i18n="appearance">Appearance</p>
+          <h2 data-i18n="chooseTheme">Choose theme</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="themeDialog" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="theme-list" role="listbox" aria-label="Themes">
+        <button class="theme-option" type="button" data-theme-option="dark" role="option">
+          <span aria-hidden="true">☾</span>
+          <span><strong data-i18n="darkTheme">Dark</strong><small data-i18n="darkThemeCopy">Low-light trading workspace</small></span>
+          <strong class="theme-check" aria-hidden="true">✓</strong>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="light" role="option">
+          <span aria-hidden="true">☀</span>
+          <span><strong data-i18n="lightTheme">Light</strong><small data-i18n="lightThemeCopy">Bright daytime workspace</small></span>
+          <strong class="theme-check" aria-hidden="true">✓</strong>
+        </button>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./exchange-presets.js"></script>
+    <script src="./i18n.js"></script>
+    <script src="./calculator.js"></script>
+    <script src="./contract-specs.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
