@@ -142,6 +142,58 @@
           <section class="panel">
             <div class="panel-heading compact">
               <div>
+                <p class="eyebrow" data-i18n="exitPlan">Exit plan</p>
+                <h2 data-i18n="takeProfitTargets">Take-profit targets</h2>
+              </div>
+              <span id="allocationTotal" class="allocation-pill">100%</span>
+            </div>
+
+            <div class="targets-header" aria-hidden="true">
+              <span data-i18n="target">Target</span>
+              <span data-i18n="price">Price</span>
+              <span data-i18n="allocation">Allocation</span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input type="checkbox" checked disabled />
+                <span>TP1</span>
+              </label>
+              <input id="tp1Price" name="tp1Price" aria-label="TP1 price" type="text" value="" inputmode="decimal" autocomplete="off" />
+              <span class="input-shell allocation-input">
+                <input id="tp1Allocation" name="tp1Allocation" aria-label="TP1 allocation" type="text" value="100" inputmode="decimal" autocomplete="off" />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input id="tp2Enabled" name="tp2Enabled" type="checkbox" />
+                <span>TP2</span>
+              </label>
+              <input id="tp2Price" name="tp2Price" aria-label="TP2 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
+              <span class="input-shell allocation-input">
+                <input id="tp2Allocation" name="tp2Allocation" aria-label="TP2 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+
+            <div class="target-row">
+              <label class="target-toggle">
+                <input id="tp3Enabled" name="tp3Enabled" type="checkbox" />
+                <span>TP3</span>
+              </label>
+              <input id="tp3Price" name="tp3Price" aria-label="TP3 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
+              <span class="input-shell allocation-input">
+                <input id="tp3Allocation" name="tp3Allocation" aria-label="TP3 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
+                <span class="suffix">%</span>
+              </span>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading compact">
+              <div>
                 <p class="eyebrow" data-i18n="venueCosts">Venue & costs</p>
                 <h2 data-i18n="exchangeExecution">Exchange & execution</h2>
               </div>
@@ -246,58 +298,6 @@
                 <span data-i18n="verifyRate">Verify your rate</span> ↗
               </a>
             </p>
-          </section>
-
-          <section class="panel">
-            <div class="panel-heading compact">
-              <div>
-                <p class="eyebrow" data-i18n="exitPlan">Exit plan</p>
-                <h2 data-i18n="takeProfitTargets">Take-profit targets</h2>
-              </div>
-              <span id="allocationTotal" class="allocation-pill">100%</span>
-            </div>
-
-            <div class="targets-header" aria-hidden="true">
-              <span data-i18n="target">Target</span>
-              <span data-i18n="price">Price</span>
-              <span data-i18n="allocation">Allocation</span>
-            </div>
-
-            <div class="target-row">
-              <label class="target-toggle">
-                <input type="checkbox" checked disabled />
-                <span>TP1</span>
-              </label>
-              <input id="tp1Price" name="tp1Price" aria-label="TP1 price" type="text" value="" inputmode="decimal" autocomplete="off" />
-              <span class="input-shell allocation-input">
-                <input id="tp1Allocation" name="tp1Allocation" aria-label="TP1 allocation" type="text" value="100" inputmode="decimal" autocomplete="off" />
-                <span class="suffix">%</span>
-              </span>
-            </div>
-
-            <div class="target-row">
-              <label class="target-toggle">
-                <input id="tp2Enabled" name="tp2Enabled" type="checkbox" />
-                <span>TP2</span>
-              </label>
-              <input id="tp2Price" name="tp2Price" aria-label="TP2 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
-              <span class="input-shell allocation-input">
-                <input id="tp2Allocation" name="tp2Allocation" aria-label="TP2 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
-                <span class="suffix">%</span>
-              </span>
-            </div>
-
-            <div class="target-row">
-              <label class="target-toggle">
-                <input id="tp3Enabled" name="tp3Enabled" type="checkbox" />
-                <span>TP3</span>
-              </label>
-              <input id="tp3Price" name="tp3Price" aria-label="TP3 price" type="text" value="" inputmode="decimal" autocomplete="off" disabled />
-              <span class="input-shell allocation-input">
-                <input id="tp3Allocation" name="tp3Allocation" aria-label="TP3 allocation" type="text" value="0" inputmode="decimal" autocomplete="off" disabled />
-                <span class="suffix">%</span>
-              </span>
-            </div>
           </section>
 
           <details class="panel details-panel">

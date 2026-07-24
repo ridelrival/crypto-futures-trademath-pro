@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "crypto-futures-trademath-v3";
+const CACHE_NAME = "crypto-futures-trademath-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
