@@ -247,7 +247,7 @@
                 <span data-i18n="entryExecution">Entry execution</span>
                 <select id="entryExecution" name="entryExecution">
                   <option value="taker" data-i18n="takerMarket">Taker / Market</option>
-                  <option value="maker" data-i18n="makerPostOnly">Maker / Post-only</option>
+                  <option value="maker" data-i18n="makerPostOnly" selected>Maker / Post-only</option>
                 </select>
               </label>
 
@@ -255,11 +255,11 @@
                 <span data-i18n="stopExecution">Stop execution</span>
                 <select id="stopExecution" name="stopExecution">
                   <option value="stop-market" data-i18n="stopMarketRecommended">Stop-Market / Recommended</option>
-                  <option value="stop-limit" data-i18n="stopLimit">Stop-Limit</option>
+                  <option value="stop-limit" data-i18n="stopLimit" selected>Stop-Limit</option>
                 </select>
               </label>
 
-              <label id="stopLimitField" class="field is-hidden">
+              <label id="stopLimitField" class="field">
                 <span data-i18n="stopLimitPrice">Stop limit price</span>
                 <span class="input-shell">
                   <input id="stopLimitPrice" name="stopLimitPrice" type="text" value="" inputmode="decimal" autocomplete="off" />
@@ -269,7 +269,7 @@
               <label class="field">
                 <span data-i18n="targetExecution">Target execution</span>
                 <select id="targetExecution" name="targetExecution">
-                  <option value="maker" data-i18n="makerPostOnly">Maker / Post-only</option>
+                  <option value="maker" data-i18n="makerPostOnly" selected>Maker / Post-only</option>
                   <option value="taker" data-i18n="takerMarket">Taker / Market</option>
                 </select>
               </label>

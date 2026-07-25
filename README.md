@@ -57,6 +57,8 @@ In short: **Advanced OFF means simplified execution costs, never disabled liquid
 
 ## Order behavior
 
+- Entry defaults to **Maker / Post-Only**, the first target defaults to **Maker / Post-Only**, and stop execution defaults to **Stop-Limit**.
+- Entry, target, stop trigger, and stop-limit prices remain empty and must be entered manually for each trade plan.
 - **Post-Only Maker entry or target:** slippage is forced to 0%.
 - **Taker / Market entry or target:** the slippage estimate remains editable.
 - **Stop-Market (recommended):** uses taker fee and an editable slippage estimate.
