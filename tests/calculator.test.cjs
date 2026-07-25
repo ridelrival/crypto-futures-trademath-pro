@@ -211,7 +211,7 @@ test("a valid isolated plan keeps stop strictly between entry and liquidation", 
   assert.ok(65545 > 65491);
 });
 
-test("post-only entry and target force their slippage estimates to zero", () => {
+test("maker-mode entry and Reduce-Only Limit target force slippage estimates to zero", () => {
   const result = calculate(
     baseInput({
       entryExecution: "maker",
