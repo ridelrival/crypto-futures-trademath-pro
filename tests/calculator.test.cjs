@@ -29,6 +29,7 @@ function baseInput(overrides = {}) {
     fundingIntervals: 0,
     fundingEnabled: true,
     maintenanceMargin: 0.4,
+    maximumExchangeLeverage: 0,
     quantityStep: 0.000001,
     priceTick: 0.1,
     minimumQuantity: 0.000001,
@@ -174,6 +175,40 @@ test("liquidation-before-stop remains a blocking error with advanced off", () =>
   );
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.titleKey === "liquidationRisk"));
+});
+
+test("entered leverage is blocked when it exceeds the Entry-SL liquidation ceiling", () => {
+  const result = calculate(
+    baseInput({
+      leverage: 30,
+      entryPrice: 100,
+      stopLoss: 104,
+      targets: [{ enabled: true, label: "TP1", price: 90, allocation: 100 }],
+    }),
+  );
+  const error = result.errors.find((item) => item.titleKey === "liquidationRisk");
+  assert.equal(result.valid, false);
+  assert.ok(error);
+  assert.equal(error.vars.entered, 30);
+  assert.ok(error.vars.max < 30);
+  assert.equal(result.values.liquidationBeforeStop, true);
+});
+
+test("verified exchange maximum leverage is also a blocking ceiling", () => {
+  const result = calculate(baseInput({ leverage: 100, maximumExchangeLeverage: 50 }));
+  const error = result.errors.find((item) => item.titleKey === "exchangeLeverageExceeded");
+  assert.equal(result.valid, false);
+  assert.ok(error);
+  assert.equal(error.vars.entered, 100);
+  assert.equal(error.vars.max, 50);
+  assert.equal(result.values.maximumEstimatedLeverage, 50);
+});
+
+test("a valid isolated plan keeps stop strictly between entry and liquidation", () => {
+  const result = calculate(baseInput({ leverage: 100 }));
+  assert.equal(result.valid, true);
+  assert.ok(result.values.liquidationPrice > 65545);
+  assert.ok(65545 > 65491);
 });
 
 test("post-only entry and target force their slippage estimates to zero", () => {
