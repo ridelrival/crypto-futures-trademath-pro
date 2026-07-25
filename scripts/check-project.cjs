@@ -50,6 +50,7 @@ if (!/<option value="okx" selected>/.test(html)) {
 }
 for (const id of [
   "advancedToggle",
+  "stopTriggerSource",
   "stopLimitPrice",
   "fundingEnabled",
   "specMode",
@@ -57,6 +58,21 @@ for (const id of [
   "contractQuantityValue",
 ]) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Required feature element #${id} is missing.`);
+}
+if (!/<option value="maker" data-i18n="makerPostOnly" selected>/.test(html)) {
+  throw new Error("Post-Only Limit must be the default entry execution.");
+}
+if (!/<option value="maker" data-i18n="targetReduceOnlyLimit" selected>/.test(html)) {
+  throw new Error("Reduce-Only Limit must be the default target execution.");
+}
+if (!/<option value="stop-market" data-i18n="stopMarketRecommended" selected>/.test(html)) {
+  throw new Error("Stop-Market must be the default stop execution.");
+}
+if (!/<option value="mark" data-i18n="markPrice" selected>/.test(html)) {
+  throw new Error("Mark Price must be the default stop trigger source.");
+}
+if (!/<label id="stopLimitField" class="field is-hidden">/.test(html)) {
+  throw new Error("Stop-Limit price must be hidden while Stop-Market is the default.");
 }
 for (const key of ["isolatedOnly", "crossUnsupported", "advancedOffBody"]) {
   if (!html.includes(`data-i18n="${key}"`)) {
