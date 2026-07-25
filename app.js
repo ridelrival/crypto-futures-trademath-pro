@@ -539,6 +539,9 @@
       fundingRate: numeric(elements.fundingRate.value),
       fundingIntervals: numeric(elements.fundingIntervals.value),
       maintenanceMargin,
+      maximumExchangeLeverage: currentSpecs?.verified
+        ? numeric(currentSpecs.maximumExchangeLeverage)
+        : 0,
       quantityStep: numeric(elements.quantityStep.value),
       priceTick: numeric(elements.priceTick.value),
       minimumQuantity: numeric(elements.minimumQuantity.value),
@@ -578,7 +581,7 @@
     ["liq", "stop"].forEach((key) => {
       if (key in output) output[key] = formatPrice(output[key]);
     });
-    ["max", "usage", "leverage", "share", "risk"].forEach((key) => {
+    ["entered", "max", "usage", "leverage", "share", "risk"].forEach((key) => {
       if (key in output) output[key] = formatNumber(output[key], 1, 2);
     });
     ["raw", "qty"].forEach((key) => {

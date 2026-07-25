@@ -145,6 +145,7 @@
       fundingRate: number(rawInput.fundingRate),
       fundingIntervals: Math.max(0, number(rawInput.fundingIntervals)),
       maintenanceMargin: Math.max(0, number(rawInput.maintenanceMargin)),
+      maximumExchangeLeverage: Math.max(0, number(rawInput.maximumExchangeLeverage)),
       quantityStep: number(rawInput.quantityStep),
       priceTick: number(rawInput.priceTick),
       minimumQuantity: Math.max(0, number(rawInput.minimumQuantity)),
@@ -368,13 +369,20 @@
       input.side === "long"
         ? 1 - (input.stopLoss / input.entryPrice) * (1 - effectiveMaintenanceRate)
         : (input.stopLoss / input.entryPrice) * (1 + effectiveMaintenanceRate) - 1;
-    const maximumEstimatedLeverage =
+    const maximumStopSafeLeverage =
       maximumLeverageDenominator > 0 ? 1 / maximumLeverageDenominator : Infinity;
+    const maximumEstimatedLeverage =
+      input.maximumExchangeLeverage > 0
+        ? Math.min(maximumStopSafeLeverage, input.maximumExchangeLeverage)
+        : maximumStopSafeLeverage;
 
     const liquidationBeforeStop =
       input.side === "long"
         ? liquidationPrice >= input.stopLoss
         : liquidationPrice <= input.stopLoss;
+    const exchangeLeverageExceeded =
+      input.maximumExchangeLeverage > 0 &&
+      input.leverage > input.maximumExchangeLeverage + EPSILON;
 
     const entryPathCost = entryFee + entrySlippageCost + fundingSigned;
     const breakEvenPrice =
@@ -420,9 +428,21 @@
         titleKey: "liquidationRisk",
         bodyKey: "liquidationRiskBody",
         vars: {
+          entered: input.leverage,
           liq: liquidationPrice,
           stop: input.stopLoss,
-          max: maximumEstimatedLeverage,
+          max: maximumStopSafeLeverage,
+        },
+      });
+    }
+    if (exchangeLeverageExceeded) {
+      errors.push({
+        type: "error",
+        titleKey: "exchangeLeverageExceeded",
+        bodyKey: "exchangeLeverageExceededBody",
+        vars: {
+          entered: input.leverage,
+          max: input.maximumExchangeLeverage,
         },
       });
     }
@@ -585,6 +605,8 @@
         weightedExitPrice,
         liquidationPrice,
         liquidationBeforeStop,
+        maximumStopSafeLeverage,
+        maximumExchangeLeverage: input.maximumExchangeLeverage,
         maximumEstimatedLeverage,
         breakEvenPrice,
         breakEvenWinRate,

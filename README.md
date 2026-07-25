@@ -6,7 +6,7 @@ An offline-first PWA for planning one **linear USDT/USDC perpetual-futures posit
 
 - The calculator is **isolated-only**.
 - Cross margin, portfolio margin, multiple open positions, manually added margin, and changing account-level risk tiers are not modeled.
-- Liquidation and maximum safe leverage are estimates. Always verify the exchange's mark-price liquidation before placing an order.
+- Liquidation and maximum safe leverage are estimates. A plan is blocked when liquidation is estimated to occur before the Stop Loss or when verified exchange leverage is exceeded. Always verify the exchange's mark-price liquidation before placing an order.
 - No exchange API key, wallet key, or login is requested.
 
 ## Main behavior
@@ -48,6 +48,7 @@ Safety is **not** switched off. The calculator still checks:
 - isolated liquidation price;
 - liquidation before Stop Loss;
 - maximum estimated safe leverage;
+- verified instrument maximum leverage when public exchange data is available;
 - required margin and available balance;
 - effective leverage;
 - maker/taker fees;
@@ -92,7 +93,14 @@ Raw coin quantity = risk budget / net loss per coin at stop
 Executable quantity = raw quantity rounded down by verified exchange rules
 ```
 
-With Stop-Market, the modeled stop exit is the trigger price. With Stop-Limit, it is the entered limit price.
+This makes modeled net risk equal to the selected amount before exchange rounding, or slightly lower after rounding down. With Stop-Market, the modeled stop exit is the trigger price. With Stop-Limit, it is the entered limit price.
+
+For a valid isolated plan, prices must remain strictly ordered:
+
+```text
+LONG:  liquidation < Stop Loss < Entry
+SHORT: Entry < Stop Loss < liquidation
+```
 
 ## Exchange presets and public specifications
 
