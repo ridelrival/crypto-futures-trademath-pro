@@ -254,12 +254,21 @@
               <label class="field">
                 <span data-i18n="stopExecution">Stop execution</span>
                 <select id="stopExecution" name="stopExecution">
-                  <option value="stop-market" data-i18n="stopMarketRecommended">Stop-Market / Recommended</option>
-                  <option value="stop-limit" data-i18n="stopLimit" selected>Stop-Limit</option>
+                  <option value="stop-market" data-i18n="stopMarketRecommended" selected>Stop-Market / Recommended</option>
+                  <option value="stop-limit" data-i18n="stopLimit">Stop-Limit</option>
                 </select>
               </label>
 
-              <label id="stopLimitField" class="field">
+              <label class="field">
+                <span data-i18n="stopTriggerSource">Stop trigger source</span>
+                <select id="stopTriggerSource" name="stopTriggerSource">
+                  <option value="mark" data-i18n="markPrice" selected>Mark Price</option>
+                  <option value="last" data-i18n="lastPrice">Last Price</option>
+                  <option value="index" data-i18n="indexPrice">Index Price</option>
+                </select>
+              </label>
+
+              <label id="stopLimitField" class="field is-hidden">
                 <span data-i18n="stopLimitPrice">Stop limit price</span>
                 <span class="input-shell">
                   <input id="stopLimitPrice" name="stopLimitPrice" type="text" value="" inputmode="decimal" autocomplete="off" />
@@ -269,8 +278,8 @@
               <label class="field">
                 <span data-i18n="targetExecution">Target execution</span>
                 <select id="targetExecution" name="targetExecution">
-                  <option value="maker" data-i18n="makerPostOnly" selected>Maker / Post-only</option>
-                  <option value="taker" data-i18n="takerMarket">Taker / Market</option>
+                  <option value="maker" data-i18n="targetReduceOnlyLimit" selected>Reduce-Only Limit / Maker estimate</option>
+                  <option value="taker" data-i18n="targetReduceOnlyMarket">Reduce-Only Market / Taker</option>
                 </select>
               </label>
             </div>
@@ -291,6 +300,10 @@
                 </span>
               </label>
             </div>
+
+            <p class="helper" data-i18n="executionHelper">
+              Reduce-Only prevents a target from increasing or reversing the position. A Limit order is maker only when it rests in the order book.
+            </p>
 
             <p class="source-note">
               <span id="feeSourceText">OKX contract fee calculation</span>

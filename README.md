@@ -58,12 +58,14 @@ In short: **Advanced OFF means simplified execution costs, never disabled liquid
 
 ## Order behavior
 
-- Entry defaults to **Maker / Post-Only**, the first target defaults to **Maker / Post-Only**, and stop execution defaults to **Stop-Limit**.
-- Entry, target, stop trigger, and stop-limit prices remain empty and must be entered manually for each trade plan.
-- **Post-Only Maker entry or target:** slippage is forced to 0%.
+- Entry defaults to **Post-Only Limit**, targets default to **Reduce-Only Limit** with a maker-fee estimate, and stop execution defaults to **Stop-Market** triggered by **Mark Price**.
+- Entry, target, and Stop Loss prices remain empty and must be entered manually for each trade plan. The stop-limit price appears only when Stop-Limit is selected.
+- **Post-Only entry:** slippage is forced to 0% and the order is modeled with maker fee.
+- **Reduce-Only Limit target:** modeled with maker fee and 0% slippage; a real limit fill can still be taker if it executes immediately.
 - **Taker / Market entry or target:** the slippage estimate remains editable.
-- **Stop-Market (recommended):** uses taker fee and an editable slippage estimate.
+- **Stop-Market (recommended):** uses taker fee and an editable slippage estimate. Mark Price is the default trigger source.
 - **Stop-Limit:** reveals a limit-price input, forces stop slippage to 0%, and estimates loss using that limit price. A Stop-Limit order may not fill during a fast move, so the warning remains visible.
+- **Reduce-Only** prevents a target order from increasing or reversing the position; it does not by itself guarantee maker execution.
 
 ## Funding
 
