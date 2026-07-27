@@ -50,6 +50,7 @@ if (!/<option value="okx" selected>/.test(html)) {
 }
 for (const id of [
   "advancedToggle",
+  "exchangeExecutionPanel",
   "stopTriggerSource",
   "stopLimitPrice",
   "fundingEnabled",
@@ -58,6 +59,9 @@ for (const id of [
   "contractQuantityValue",
 ]) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Required feature element #${id} is missing.`);
+}
+if (!/<details id="exchangeExecutionPanel" class="panel exchange-panel" open>/.test(html)) {
+  throw new Error("Exchange & Execution must be expanded by default for new users.");
 }
 if (!/<option value="maker" data-i18n="makerPostOnly" selected>/.test(html)) {
   throw new Error("Post-Only Limit must be the default entry execution.");
@@ -81,6 +85,9 @@ for (const key of ["isolatedOnly", "crossUnsupported", "advancedOffBody"]) {
 }
 
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
+if (!appSource.includes('const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open"')) {
+  throw new Error("Exchange panel state must persist between sessions.");
+}
 const staticIds = [...appSource.matchAll(/\$\("([^"]+)"\)/g)].map((match) => match[1]);
 for (const id of new Set(staticIds)) {
   if (!html.includes(`id="${id}"`)) throw new Error(`app.js references missing element #${id}`);
