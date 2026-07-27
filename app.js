@@ -8,6 +8,7 @@
   const HISTORY_KEY = "trademath-history-v1";
   const THEME_KEY = "trademath-theme";
   const ADVANCED_KEY = "trademath-advanced-enabled";
+  const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open";
 
   const $ = (id) => document.getElementById(id);
   const form = $("tradeForm");
@@ -380,6 +381,12 @@
     syncExecutionControls();
     syncFundingControls();
     syncSpecControls();
+  }
+
+  function restoreExchangePanelState() {
+    const panel = $("exchangeExecutionPanel");
+    if (!panel) return;
+    panel.open = localStorage.getItem(EXCHANGE_PANEL_KEY) !== "closed";
   }
 
   function scheduleSpecsFetch(force = false) {
@@ -1188,6 +1195,9 @@
       if (advancedEnabled && elements.specMode.value === "auto") scheduleSpecsFetch();
       calculateAndRender();
     });
+    $("exchangeExecutionPanel").addEventListener("toggle", (event) => {
+      localStorage.setItem(EXCHANGE_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
+    });
     elements.tp2Enabled.addEventListener("change", () => handleTargetToggle(2));
     elements.tp3Enabled.addEventListener("change", () => handleTargetToggle(3));
     $("resetButton").addEventListener("click", resetForm);
@@ -1220,6 +1230,7 @@
   function init() {
     I18n.apply();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
+    restoreExchangePanelState();
     setupDialogs();
     setupEvents();
     setupInstall();

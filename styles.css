@@ -86,14 +86,20 @@
 }
 
 html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   background: var(--bg);
   scroll-behavior: smooth;
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-size: 15px;
@@ -416,6 +422,7 @@ select {
   outline: none;
   background: var(--input-bg);
   color: var(--text);
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -592,6 +599,7 @@ input[type="checkbox"] {
 }
 
 .details-panel summary,
+.exchange-panel summary,
 .result-details summary {
   display: flex;
   align-items: center;
@@ -603,15 +611,18 @@ input[type="checkbox"] {
 }
 
 .details-panel summary::-webkit-details-marker,
+.exchange-panel summary::-webkit-details-marker,
 .result-details summary::-webkit-details-marker {
   display: none;
 }
 
-.details-panel summary strong {
+.details-panel summary strong,
+.exchange-summary-title {
   font-size: 15px;
 }
 
-.details-panel summary > span:first-child {
+.details-panel summary > span:first-child,
+.panel-heading-copy {
   display: grid;
 }
 
@@ -626,6 +637,21 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.exchange-summary-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.exchange-panel summary {
+  border-bottom: 0;
+}
+
+.exchange-panel[open] .exchange-panel-content {
+  border-top: 1px solid var(--border);
 }
 
 .advanced-switch {
@@ -1602,15 +1628,33 @@ details[open] .summary-arrow {
 
   .trade-controls {
     display: grid;
+    grid-template-columns: minmax(82px, 0.62fr) minmax(0, 1.38fr);
+    align-items: center;
+    gap: 10px;
     justify-items: stretch;
   }
 
   .direction-copy {
+    min-width: 0;
+    margin-right: 0;
     text-align: left;
+  }
+
+  .direction-copy small {
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .segmented-control {
+    min-width: 0;
+    gap: 8px;
   }
 
   .segmented-control button {
     min-width: 0;
+    min-height: 54px;
+    padding: 8px 6px;
+    font-size: clamp(14px, 4.5vw, 18px);
   }
 
   .context-strip,
@@ -1690,6 +1734,7 @@ details[open] .summary-arrow {
   .panel-heading,
   .panel-heading.compact,
   .details-panel summary,
+  .exchange-panel summary,
   .result-details summary {
     padding: 16px 14px;
   }
@@ -1756,7 +1801,7 @@ details[open] .summary-arrow {
   select {
     padding-right: 28px;
     padding-left: 10px;
-    font-size: 13px;
+    font-size: 16px;
   }
 
   .prefix,
@@ -1769,11 +1814,11 @@ details[open] .summary-arrow {
     min-width: 52px;
     padding-right: 21px;
     padding-left: 7px;
-    font-size: 12px;
+    font-size: 16px;
   }
 
   .quote-select {
-    min-width: 66px;
+    min-width: 72px;
   }
 
   .number-format-note {

@@ -191,16 +191,20 @@
             </div>
           </section>
 
-          <section class="panel">
-            <div class="panel-heading compact">
-              <div>
-                <p class="eyebrow" data-i18n="venueCosts">Venue & costs</p>
-                <h2 data-i18n="exchangeExecution">Exchange & execution</h2>
-              </div>
-              <span id="feeVerifiedBadge" class="verified-badge">Verified 2026-07-23</span>
-            </div>
+          <details id="exchangeExecutionPanel" class="panel exchange-panel" open>
+            <summary class="panel-heading compact">
+              <span class="panel-heading-copy">
+                <span class="eyebrow" data-i18n="venueCosts">Venue & costs</span>
+                <strong class="exchange-summary-title" data-i18n="exchangeExecution">Exchange & execution</strong>
+              </span>
+              <span class="exchange-summary-actions">
+                <span id="feeVerifiedBadge" class="verified-badge">Verified 2026-07-23</span>
+                <span class="summary-arrow" aria-hidden="true">⌄</span>
+              </span>
+            </summary>
 
-            <div class="field-grid">
+            <div class="exchange-panel-content">
+              <div class="field-grid">
               <label class="field">
                 <span data-i18n="exchange">Exchange</span>
                 <select id="exchange" name="exchange">
@@ -282,9 +286,9 @@
                   <option value="taker" data-i18n="targetReduceOnlyMarket">Reduce-Only Market / Taker</option>
                 </select>
               </label>
-            </div>
+              </div>
 
-            <div id="customFeeFields" class="field-grid custom-fees is-hidden">
+              <div id="customFeeFields" class="field-grid custom-fees is-hidden">
               <label class="field">
                 <span data-i18n="makerFee">Maker fee</span>
                 <span class="input-shell">
@@ -299,19 +303,20 @@
                   <span class="suffix">%</span>
                 </span>
               </label>
+              </div>
+
+              <p class="helper" data-i18n="executionHelper">
+                Reduce-Only prevents a target from increasing or reversing the position. A Limit order is maker only when it rests in the order book.
+              </p>
+
+              <p class="source-note">
+                <span id="feeSourceText">OKX contract fee calculation</span>
+                <a id="feeSourceLink" href="https://www.binance.com/en/fee/futureFee" target="_blank" rel="noopener noreferrer">
+                  <span data-i18n="verifyRate">Verify your rate</span> ↗
+                </a>
+              </p>
             </div>
-
-            <p class="helper" data-i18n="executionHelper">
-              Reduce-Only prevents a target from increasing or reversing the position. A Limit order is maker only when it rests in the order book.
-            </p>
-
-            <p class="source-note">
-              <span id="feeSourceText">OKX contract fee calculation</span>
-              <a id="feeSourceLink" href="https://www.binance.com/en/fee/futureFee" target="_blank" rel="noopener noreferrer">
-                <span data-i18n="verifyRate">Verify your rate</span> ↗
-              </a>
-            </p>
-          </section>
+          </details>
 
           <details class="panel details-panel">
             <summary>
