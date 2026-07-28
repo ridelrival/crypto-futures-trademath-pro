@@ -1,0 +1,68 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-android-apk.yml"
+      - "assets/**"
+      - "scripts/prepare-mobile.mjs"
+      - "scripts/configure-android.mjs"
+      - "*.html"
+      - "*.css"
+      - "*.js"
+      - "package.json"
+      - "capacitor.config.json"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sideload APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Install Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: Test calculator
+        run: |
+          npm test
+          npm run check
+
+      - name: Generate Android project
+        run: npm run mobile:android
+
+      - name: Build debug-signed APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare APK artifact
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Crypto-Futures-TradeMath-Pro-1.0.0-sideload.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crypto-Futures-TradeMath-Pro-APK
+          path: Crypto-Futures-TradeMath-Pro-1.0.0-sideload.apk
+          if-no-files-found: error
+          retention-days: 30
