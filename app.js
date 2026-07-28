@@ -1073,6 +1073,9 @@
   }
 
   function setupInstall() {
+    const isNativeApp = Boolean(window.Capacitor?.isNativePlatform?.());
+    if (isNativeApp) return;
+
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       deferredInstallPrompt = event;

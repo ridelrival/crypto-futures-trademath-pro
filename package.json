@@ -5,6 +5,16 @@
   "description": "Offline-first USDT/USDC perpetual futures trade planning calculator.",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node scripts/check-project.cjs"
+    "check": "node scripts/check-project.cjs",
+    "mobile:prepare": "node scripts/prepare-mobile.mjs",
+    "mobile:configure": "node scripts/configure-android.mjs",
+    "mobile:android": "npm run mobile:prepare && npx cap add android && npx cap sync android && npm run mobile:configure"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.4.0",
+    "@capacitor/cli": "8.4.0"
   }
 }
