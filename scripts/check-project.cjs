@@ -131,4 +131,26 @@ for (const file of required.filter((name) => name !== "sw.js")) {
   }
 }
 
+const capacitorConfig = JSON.parse(
+  fs.readFileSync(path.join(root, "capacitor.config.json"), "utf8"),
+);
+if (
+  capacitorConfig.appId !== "com.ridelrival.cryptofuturestrademathpro" ||
+  capacitorConfig.webDir !== "www"
+) {
+  throw new Error("Capacitor app identity or offline web directory is invalid.");
+}
+if (!appSource.includes("window.Capacitor?.isNativePlatform?.()")) {
+  throw new Error("Native Android builds must not register the browser PWA installer.");
+}
+for (const file of [
+  "scripts/prepare-mobile.mjs",
+  "scripts/configure-android.mjs",
+  ".github/workflows/build-android-apk.yml",
+]) {
+  if (!fs.existsSync(path.join(root, file))) {
+    throw new Error(`Missing Android build file: ${file}`);
+  }
+}
+
 console.log("Project structure and GitHub Pages paths are valid.");
