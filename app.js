@@ -8,7 +8,10 @@
   const HISTORY_KEY = "trademath-history-v1";
   const THEME_KEY = "trademath-theme";
   const ADVANCED_KEY = "trademath-advanced-enabled";
+  const INSTRUMENT_KEY = "trademath-last-instrument";
+  const EXIT_PLAN_PANEL_KEY = "trademath-exit-plan-panel-open";
   const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open";
+  const REFRESH_STATE_KEY = "trademath-refresh-state-v1";
 
   const $ = (id) => document.getElementById(id);
   const form = $("tradeForm");
@@ -18,14 +21,13 @@
     riskUnit: $("riskUnit"),
     leverage: $("leverage"),
     symbol: $("symbol"),
+    instrumentSymbol: $("instrumentSymbol"),
     quoteCurrency: $("quoteCurrency"),
     entryPrice: $("entryPrice"),
     stopLoss: $("stopLoss"),
     stopLimitPrice: $("stopLimitPrice"),
     stopLimitField: $("stopLimitField"),
     exchange: $("exchange"),
-    otherExchange: $("otherExchange"),
-    otherExchangeField: $("otherExchangeField"),
     feeTier: $("feeTier"),
     customFeeFields: $("customFeeFields"),
     makerFee: $("makerFee"),
@@ -48,6 +50,7 @@
     priceTick: $("priceTick"),
     minimumQuantity: $("minimumQuantity"),
     minimumNotional: $("minimumNotional"),
+    maximumExchangeLeverage: $("maximumExchangeLeverage"),
     tp1Price: $("tp1Price"),
     tp1Allocation: $("tp1Allocation"),
     tp2Enabled: $("tp2Enabled"),
@@ -80,6 +83,8 @@
     "freeBalanceValue",
     "maxLeverageValue",
     "contractQuantityValue",
+    "openingCostValue",
+    "amountFromCostValue",
   ];
 
   let side = "";
@@ -142,10 +147,16 @@
     return `${formatNumber(value, decimals, decimals)}%`;
   }
 
+  function genericQuantityDecimals(value) {
+    const absolute = Math.abs(numeric(value));
+    if (absolute >= 0.01) return 4;
+    if (absolute >= 0.0001) return 6;
+    if (absolute >= 0.000001) return 8;
+    return 10;
+  }
+
   function currentExchangeId() {
-    return elements.exchange.value === "other"
-      ? elements.otherExchange.value
-      : elements.exchange.value;
+    return elements.exchange.value;
   }
 
   function currentExchange() {
@@ -162,17 +173,20 @@
   }
 
   function fullSymbol() {
-    const base = elements.symbol.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const base = elements.instrumentSymbol.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     return base ? `${base}${elements.quoteCurrency.value}` : "";
+  }
+
+  function instrumentBase() {
+    return elements.instrumentSymbol.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   }
 
   function formatEditableNumber(value) {
     if (!Number.isFinite(value)) return "";
-    let formatted = value.toLocaleString("en-US", {
+    const formatted = value.toLocaleString("en-US", {
       useGrouping: Math.abs(value) >= 1000,
       maximumFractionDigits: 12,
     });
-    if (/^-?[1-9]\d*\.\d{3}$/.test(formatted)) formatted += "0";
     return formatted;
   }
 
@@ -199,10 +213,107 @@
     if (persist) localStorage.setItem(THEME_KEY, theme);
   }
 
+  function syncRefreshButtonLabel(refreshing = false) {
+    const button = $("refreshButton");
+    if (!button) return;
+    const label = I18n.t(refreshing ? "refreshingData" : "refreshData");
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+
+  function captureRefreshState() {
+    const controls = {};
+    Array.from(form.elements).forEach((control) => {
+      if (!control.id || ["button", "submit", "file"].includes(control.type)) return;
+      controls[control.id] =
+        control.type === "checkbox" || control.type === "radio"
+          ? { checked: control.checked }
+          : { value: control.value };
+    });
+    sessionStorage.setItem(
+      REFRESH_STATE_KEY,
+      JSON.stringify({
+        controls,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+      }),
+    );
+  }
+
+  function restoreRefreshState() {
+    let snapshot = null;
+    try {
+      snapshot = JSON.parse(sessionStorage.getItem(REFRESH_STATE_KEY) || "null");
+    } catch {
+      snapshot = null;
+    }
+    sessionStorage.removeItem(REFRESH_STATE_KEY);
+    if (!snapshot?.controls) return false;
+
+    const exchangeState = snapshot.controls.exchange;
+    if (exchangeState?.value && Exchanges[exchangeState.value]) {
+      elements.exchange.value = exchangeState.value;
+    }
+    applyExchange(true);
+
+    Object.entries(snapshot.controls).forEach(([id, state]) => {
+      if (id === "exchange") return;
+      const control = document.getElementById(id);
+      if (!control) return;
+      if ("checked" in state && (control.type === "checkbox" || control.type === "radio")) {
+        control.checked = Boolean(state.checked);
+      } else if ("value" in state) {
+        control.value = state.value;
+      }
+    });
+
+    applyFeeTier();
+    syncTargetState(2);
+    syncTargetState(3);
+    updateAutomaticTp1Allocation();
+    syncAdvancedControls();
+    syncExecutionControls();
+    syncFundingControls();
+
+    if (
+      advancedEnabled &&
+      elements.specMode.value === "auto" &&
+      elements.instrumentSymbol.value
+    ) {
+      clearContractSpecs(true);
+      scheduleSpecsFetch(true);
+    }
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo(Number(snapshot.scrollX) || 0, Number(snapshot.scrollY) || 0);
+    });
+    return true;
+  }
+
+  async function refreshApplicationData() {
+    const button = $("refreshButton");
+    if (button?.disabled) return;
+    captureRefreshState();
+    button.disabled = true;
+    button.classList.add("refreshing");
+    button.setAttribute("aria-busy", "true");
+    syncRefreshButtonLabel(true);
+
+    if ("serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration("./");
+        await registration?.update();
+      } catch {
+        // Reload and public instrument refresh still proceed if the update check fails.
+      }
+    }
+    window.location.reload();
+  }
+
   function contractContext() {
     return {
       exchangeId: currentExchangeId(),
-      symbolBase: elements.symbol.value,
+      symbolBase: elements.instrumentSymbol.value,
       quoteCurrency: elements.quoteCurrency.value,
     };
   }
@@ -221,11 +332,16 @@
     elements.priceTick.value = "";
     elements.minimumQuantity.value = "";
     elements.minimumNotional.value = "";
+    elements.maximumExchangeLeverage.value = "";
     if (keepMaintenance) {
       elements.maintenanceMargin.value = currentExchange().maintenanceMargin;
     }
     $("specSourceLink").classList.add("is-hidden");
-    setSpecStatus(fullSymbol() ? "unverified" : "waiting", fullSymbol() ? "specsUnverifiedShort" : "specsWaiting");
+    $("specStatus").removeAttribute("title");
+    setSpecStatus(
+      fullSymbol() ? "unverified" : "waiting",
+      fullSymbol() ? "specsUnverifiedShort" : "genericSpecsIdle",
+    );
   }
 
   function applyContractSpecs(specs) {
@@ -240,6 +356,9 @@
     elements.minimumNotional.value = specs.minimumNotional
       ? formatEditableNumber(specs.minimumNotional)
       : "";
+    elements.maximumExchangeLeverage.value = specs.maximumExchangeLeverage
+      ? formatEditableNumber(specs.maximumExchangeLeverage)
+      : "";
     elements.maintenanceMargin.value = specs.maintenanceMargin
       ? formatEditableNumber(specs.maintenanceMargin)
       : formatEditableNumber(currentExchange().maintenanceMargin);
@@ -247,11 +366,25 @@
     const source = $("specSourceLink");
     source.classList.toggle("is-hidden", !specs.source);
     if (specs.source) source.href = specs.source;
-    const fetched = new Date(specs.fetchedAt).toLocaleTimeString(locale(), {
+    const fetched = new Date(specs.fetchedAt).toLocaleString(locale(), {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
     });
-    setSpecStatus("verified", specs.cached ? "specsCached" : "specsVerified", { time: fetched });
+    const statusKey =
+      specs.offlineFallback || specs.stale
+        ? "specsCachedStale"
+        : specs.cached
+          ? "specsCached"
+          : "specsVerified";
+    setSpecStatus(
+      specs.offlineFallback || specs.stale ? "stale" : "verified",
+      statusKey,
+      { time: fetched },
+    );
+    $("specStatus").title = `${currentExchange().name} · ${fullSymbol()}`;
     syncAdvancedControls();
   }
 
@@ -321,13 +454,12 @@
     elements.fundingEnabled.disabled = !advancedEnabled;
     elements.fundingRate.disabled = !enabled;
     elements.fundingIntervals.disabled = !enabled;
-    $("fetchFundingButton").disabled = !enabled;
+    $("fetchFundingButton").disabled = !enabled || !fullSymbol();
   }
 
   function syncSpecControls() {
     const auto = elements.specMode.value === "auto";
     elements.specMode.disabled = !advancedEnabled;
-    $("loadSpecsButton").disabled = !advancedEnabled || !auto || !fullSymbol();
     [
       elements.quantityMode,
       elements.contractSize,
@@ -336,6 +468,7 @@
       elements.priceTick,
       elements.minimumQuantity,
       elements.minimumNotional,
+      elements.maximumExchangeLeverage,
     ].forEach((input) => {
       input.disabled = !advancedEnabled || auto;
     });
@@ -343,17 +476,28 @@
       setSpecStatus("off", "advancedOff");
     } else if (auto) {
       if (currentSpecs?.verified) {
-        const fetched = new Date(currentSpecs.fetchedAt).toLocaleTimeString(locale(), {
+        const fetched = new Date(currentSpecs.fetchedAt).toLocaleString(locale(), {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
         });
-        setSpecStatus("verified", currentSpecs.cached ? "specsCached" : "specsVerified", {
-          time: fetched,
-        });
+        const statusKey =
+          currentSpecs.offlineFallback || currentSpecs.stale
+            ? "specsCachedStale"
+            : currentSpecs.cached
+              ? "specsCached"
+              : "specsVerified";
+        setSpecStatus(
+          currentSpecs.offlineFallback || currentSpecs.stale ? "stale" : "verified",
+          statusKey,
+          { time: fetched },
+        );
       } else {
         setSpecStatus(
           fullSymbol() ? "unverified" : "waiting",
-          fullSymbol() ? "specsUnverifiedShort" : "specsWaiting",
+          fullSymbol() ? "specsUnverifiedShort" : "genericSpecsIdle",
         );
       }
     } else if (!auto) {
@@ -389,6 +533,35 @@
     panel.open = localStorage.getItem(EXCHANGE_PANEL_KEY) !== "closed";
   }
 
+  function arrangeInputPanels() {
+    if (document.getElementById("inputPrimaryStack")) return;
+
+    const exchangePanel = $("exchangeExecutionPanel");
+    const parametersPanel = $("parametersPanel");
+    const exitPlanPanel = $("exitPlanPanel");
+    const advancedPanel = form.querySelector(".details-panel");
+    if (!exchangePanel || !parametersPanel || !exitPlanPanel || !advancedPanel) return;
+
+    const primaryStack = document.createElement("div");
+    primaryStack.id = "inputPrimaryStack";
+    primaryStack.className = "input-layout-stack input-primary-stack";
+
+    const parametersStack = document.createElement("div");
+    parametersStack.id = "inputParametersStack";
+    parametersStack.className = "input-layout-stack input-parameters-stack";
+
+    form.insertBefore(primaryStack, advancedPanel);
+    form.insertBefore(parametersStack, advancedPanel);
+    primaryStack.append(exchangePanel, exitPlanPanel, advancedPanel);
+    parametersStack.append(parametersPanel);
+  }
+
+  function restoreExitPlanPanelState() {
+    const panel = $("exitPlanPanel");
+    if (!panel) return;
+    panel.open = localStorage.getItem(EXIT_PLAN_PANEL_KEY) !== "closed";
+  }
+
   function scheduleSpecsFetch(force = false) {
     window.clearTimeout(specsDebounceTimer);
     if (
@@ -406,18 +579,21 @@
   async function fetchContractSpecifications(force = false) {
     if (!ContractSpecs || !fullSymbol() || elements.specMode.value !== "auto") return;
     const requestId = ++specsRequestId;
-    const button = $("loadSpecsButton");
-    button.disabled = true;
     setSpecStatus("loading", "specsLoading");
     try {
       const specs = await ContractSpecs.fetchSpecs(contractContext(), force);
       if (requestId !== specsRequestId) return;
       applyContractSpecs(specs);
-      showToast(I18n.t("specsLoaded"));
-    } catch {
+      showToast(
+        I18n.t(
+          specs.offlineFallback || specs.stale ? "specsOfflineLoaded" : "specsLoaded",
+        ),
+      );
+    } catch (error) {
       if (requestId !== specsRequestId) return;
       clearContractSpecs(true);
       setSpecStatus("unverified", "specsUnavailable");
+      $("specStatus").title = error instanceof Error ? error.message : String(error);
     } finally {
       if (requestId === specsRequestId) {
         syncSpecControls();
@@ -462,13 +638,12 @@
   }
 
   function applyExchange(resetTier = true) {
-    const showOther = elements.exchange.value === "other";
-    elements.otherExchangeField.classList.toggle("is-hidden", !showOther);
     const exchange = currentExchange();
+    elements.quoteCurrency.value = exchange.settlement === "USDC" ? "USDC" : "USDT";
+    $("settlementDisplay").textContent = elements.quoteCurrency.value;
+    $("instrumentSettlement").textContent = elements.quoteCurrency.value;
     clearContractSpecs(true);
-    $("feeVerifiedBadge").textContent = `Verified ${exchange.verifiedOn}`;
     $("feeSourceText").textContent = exchange.sourceLabel;
-    $("settlementValue").textContent = elements.quoteCurrency.value;
     const link = $("feeSourceLink");
     link.classList.toggle("is-hidden", !exchange.source);
     if (exchange.source) link.href = exchange.source;
@@ -484,31 +659,35 @@
     elements[`tp${targetNumber}Allocation`].disabled = !enabled;
   }
 
+  function updateAutomaticTp1Allocation() {
+    const secondaryAllocation =
+      (elements.tp2Enabled.checked ? numeric(elements.tp2Allocation.value) : 0) +
+      (elements.tp3Enabled.checked ? numeric(elements.tp3Allocation.value) : 0);
+    const tp1Allocation = Math.max(0, 100 - secondaryAllocation);
+    elements.tp1Allocation.value = formatEditableNumber(tp1Allocation);
+    $("tp1AllocationDisplay").textContent =
+      `TP1: ${formatNumber(tp1Allocation, 0, 2)}%`;
+  }
+
   function handleTargetToggle(targetNumber) {
     syncTargetState(targetNumber);
     if (targetNumber === 2) {
       if (elements.tp2Enabled.checked && numeric(elements.tp2Allocation.value) === 0) {
-        elements.tp1Allocation.value = elements.tp3Enabled.checked ? 50 : 70;
         elements.tp2Allocation.value = 30;
       }
       if (!elements.tp2Enabled.checked) {
-        elements.tp1Allocation.value =
-          100 - (elements.tp3Enabled.checked ? numeric(elements.tp3Allocation.value) : 0);
         elements.tp2Allocation.value = 0;
       }
     }
     if (targetNumber === 3) {
       if (elements.tp3Enabled.checked && numeric(elements.tp3Allocation.value) === 0) {
-        elements.tp1Allocation.value = elements.tp2Enabled.checked ? 50 : 80;
-        elements.tp2Allocation.value = elements.tp2Enabled.checked ? 30 : 0;
         elements.tp3Allocation.value = 20;
       }
       if (!elements.tp3Enabled.checked) {
-        elements.tp1Allocation.value =
-          100 - (elements.tp2Enabled.checked ? numeric(elements.tp2Allocation.value) : 0);
         elements.tp3Allocation.value = 0;
       }
     }
+    updateAutomaticTp1Allocation();
     calculateAndRender();
   }
 
@@ -523,9 +702,10 @@
       riskMode: elements.riskUnit.value,
       riskValue: numeric(elements.riskValue.value),
       leverage: numeric(elements.leverage.value),
-      symbolBase: elements.symbol.value.trim().toUpperCase(),
+      symbolBase: "COIN",
       quoteCurrency: elements.quoteCurrency.value,
-      symbol: fullSymbol(),
+      symbol: `COIN${elements.quoteCurrency.value}`,
+      instrumentSymbol: fullSymbol(),
       entryPrice: numeric(elements.entryPrice.value),
       stopLoss: numeric(elements.stopLoss.value),
       stopOrderType: elements.stopExecution.value,
@@ -548,9 +728,10 @@
       fundingRate: numeric(elements.fundingRate.value),
       fundingIntervals: numeric(elements.fundingIntervals.value),
       maintenanceMargin,
-      maximumExchangeLeverage: currentSpecs?.verified
-        ? numeric(currentSpecs.maximumExchangeLeverage)
-        : 0,
+      maximumExchangeLeverage:
+        elements.specMode.value === "auto" && currentSpecs?.verified
+          ? numeric(currentSpecs.maximumExchangeLeverage)
+          : numeric(elements.maximumExchangeLeverage.value),
       quantityStep: numeric(elements.quantityStep.value),
       priceTick: numeric(elements.priceTick.value),
       minimumQuantity: numeric(elements.minimumQuantity.value),
@@ -654,16 +835,24 @@
 
     const value = result.values;
     const quantityDecimals = 10;
-    const baseCoin = elements.symbol.value.trim().toUpperCase() || I18n.t("baseCoin");
+    const baseCoin = "COIN";
+    const specsVerified = specsVerifiedForCalculation();
+    $("quantityMetricLabel").textContent = I18n.t("executableQuantity");
     $("marginCostValue").textContent = formatMoney(value.initialMargin);
     $("marginUsageValue").textContent = `${formatPercent(value.marginUsage)} ${I18n.t("ofAccount")}`;
     $("coinSizeValue").textContent =
-      `${formatNumber(value.executableCoinQuantity, 0, quantityDecimals)} ${baseCoin}`;
+      `${formatNumber(
+        specsVerified ? value.executableCoinQuantity : value.rawCoinQuantity,
+        0,
+        specsVerified ? quantityDecimals : genericQuantityDecimals(value.rawCoinQuantity),
+      )} ${baseCoin}`;
     $("rawSizeValue").textContent =
-      `${I18n.t("rawCoin")}: ${formatNumber(value.rawCoinQuantity, 0, 10)} ${baseCoin}`;
+      `${I18n.t("rawCoin")}: ${formatNumber(value.rawCoinQuantity, 0, 10)}`;
     $("contractQuantityValue").textContent = finite(value.contractQuantity)
       ? `${formatNumber(value.contractQuantity, 0, 8)} ${I18n.t("contracts")}`
-      : I18n.t("baseCoinOrder");
+      : specsVerified && elements.quantityMode.value === "base"
+        ? I18n.t("baseCoinOrder")
+        : I18n.t("contractQuantityOptional");
     $("positionValue").textContent = formatMoney(value.notional);
     $("grossRRValue").textContent = formatRatio(value.grossRR);
     $("netRRValue").textContent = formatRatio(value.netRR);
@@ -688,24 +877,21 @@
     $("winRateValue").textContent = formatPercent(value.breakEvenWinRate);
     $("effectiveLeverageValue").textContent = `${formatNumber(value.effectiveLeverage, 2, 2)}×`;
     $("freeBalanceValue").textContent = formatMoney(value.freeBalance);
+    $("openingCostValue").textContent = formatMoney(value.openingCost);
+    $("amountFromCostValue").textContent = formatMoney(value.amountFromOpeningCost);
     $("maxLeverageValue").textContent = finite(value.maximumEstimatedLeverage)
       ? `${formatNumber(value.maximumEstimatedLeverage, 1, 1)}×`
       : "—";
   }
 
   function updateAllocationBadge() {
-    const total =
-      numeric(elements.tp1Allocation.value) +
-      (elements.tp2Enabled.checked ? numeric(elements.tp2Allocation.value) : 0) +
-      (elements.tp3Enabled.checked ? numeric(elements.tp3Allocation.value) : 0);
-    const badge = $("allocationTotal");
-    badge.textContent = `${formatNumber(total, 0, 2)}%`;
-    badge.classList.toggle("valid", Math.abs(total - 100) <= 0.001);
-    badge.classList.toggle("invalid", Math.abs(total - 100) > 0.001);
+    updateAutomaticTp1Allocation();
   }
 
   function calculateAndRender() {
     if (!Calculator || !I18n) return;
+    $("instrumentSettlement").textContent = elements.quoteCurrency.value;
+    $("settlementDisplay").textContent = elements.quoteCurrency.value;
     side = Calculator.detectTradeSide(elements.entryPrice.value, elements.stopLoss.value);
     $("longButton").classList.toggle("active", side === "long");
     $("shortButton").classList.toggle("active", side === "short");
@@ -1032,8 +1218,11 @@
   function resetForm() {
     form.reset();
     side = "";
+    elements.symbol.value = "COIN";
+    elements.instrumentSymbol.value = "";
+    localStorage.removeItem(INSTRUMENT_KEY);
     elements.exchange.value = "okx";
-    elements.otherExchange.value = "gate";
+    updateAutomaticTp1Allocation();
     syncTargetState(2);
     syncTargetState(3);
     $("longButton").classList.remove("active");
@@ -1111,14 +1300,17 @@
 
   function setupEvents() {
     form.addEventListener("input", (event) => {
-      if (event.target === elements.symbol) {
-        const cursor = elements.symbol.selectionStart;
-        elements.symbol.value = elements.symbol.value.toUpperCase();
-        elements.symbol.setSelectionRange(cursor, cursor);
+      if (event.target === elements.instrumentSymbol) {
+        const cursor = elements.instrumentSymbol.selectionStart;
+        elements.instrumentSymbol.value = elements.instrumentSymbol.value
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+        elements.instrumentSymbol.setSelectionRange(cursor, cursor);
         if (elements.specMode.value === "auto") {
           clearContractSpecs(true);
           scheduleSpecsFetch();
         }
+        syncFundingControls();
       }
       if (event.target === elements.makerFee || event.target === elements.takerFee) {
         $("makerFeeDisplay").textContent = `${formatNumber(elements.makerFee.value, 4, 4)}%`;
@@ -1134,6 +1326,7 @@
           elements.priceTick,
           elements.minimumQuantity,
           elements.minimumNotional,
+          elements.maximumExchangeLeverage,
         ].includes(event.target)
       ) {
         syncSpecControls();
@@ -1152,13 +1345,7 @@
     );
     form.addEventListener("change", calculateAndRender);
     elements.exchange.addEventListener("change", () => applyExchange(true));
-    elements.otherExchange.addEventListener("change", () => applyExchange(true));
     elements.feeTier.addEventListener("change", applyFeeTier);
-    elements.quoteCurrency.addEventListener("change", () => {
-      $("settlementValue").textContent = elements.quoteCurrency.value;
-      clearContractSpecs(true);
-      scheduleSpecsFetch();
-    });
     elements.entryExecution.addEventListener("change", () => {
       syncExecutionControls();
       calculateAndRender();
@@ -1189,7 +1376,6 @@
       syncSpecControls();
       calculateAndRender();
     });
-    $("loadSpecsButton").addEventListener("click", () => fetchContractSpecifications(true));
     $("advancedToggle").addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -1201,9 +1387,13 @@
     $("exchangeExecutionPanel").addEventListener("toggle", (event) => {
       localStorage.setItem(EXCHANGE_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
     });
+    $("exitPlanPanel").addEventListener("toggle", (event) => {
+      localStorage.setItem(EXIT_PLAN_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
+    });
     elements.tp2Enabled.addEventListener("change", () => handleTargetToggle(2));
     elements.tp3Enabled.addEventListener("change", () => handleTargetToggle(3));
     $("resetButton").addEventListener("click", resetForm);
+    $("refreshButton").addEventListener("click", refreshApplicationData);
     $("saveDraftButton").addEventListener("click", () => saveRecord("draft"));
     $("saveTradeButton").addEventListener("click", () => saveRecord("planned"));
     $("downloadPlanButton").addEventListener("click", downloadCurrentPlan);
@@ -1225,6 +1415,7 @@
       renderHistory();
       renderLanguages($("languageSearch")?.value || "");
       applyTheme(document.documentElement.dataset.theme || "dark", false);
+      syncRefreshButtonLabel();
       syncAdvancedControls();
       calculateAndRender();
     });
@@ -1232,18 +1423,25 @@
 
   function init() {
     I18n.apply();
+    syncRefreshButtonLabel();
+    arrangeInputPanels();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
+    restoreExitPlanPanelState();
     restoreExchangePanelState();
     setupDialogs();
     setupEvents();
     setupInstall();
     syncTargetState(2);
     syncTargetState(3);
+    elements.instrumentSymbol.value = "";
+    localStorage.removeItem(INSTRUMENT_KEY);
     syncAdvancedControls();
     applyExchange(true);
+    const restoredAfterRefresh = restoreRefreshState();
     renderLanguages();
     renderHistory();
     calculateAndRender();
+    if (restoredAfterRefresh) showToast(I18n.t("refreshComplete"));
   }
 
   init();

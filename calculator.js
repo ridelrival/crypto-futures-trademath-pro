@@ -39,7 +39,8 @@
       const parts = unsigned.split(separator);
       if (parts.length === 2) {
         const [integerPart, fractionPart] = parts;
-        const isDecimal = integerPart === "0" || fractionPart.length !== 3;
+        const isDecimal =
+          separator === "." || integerPart === "0" || fractionPart.length !== 3;
         normalized = isDecimal ? `${integerPart}.${fractionPart}` : `${integerPart}${fractionPart}`;
       } else {
         const lastPart = parts.at(-1);
@@ -320,6 +321,8 @@
     const notional = quantity * input.entryPrice;
     const initialMargin = notional / input.leverage;
     const entryFee = notional * entryFeeRate;
+    const openingCost = initialMargin + entryFee;
+    const amountFromOpeningCost = Math.max(0, openingCost - entryFee) * input.leverage;
     const stopFee = quantity * stopExitPrice * stopFeeRate;
     const entrySlippageCost = notional * entrySlippageRate;
     const stopSlippageCost = quantity * stopExitPrice * stopSlippageRate;
@@ -580,6 +583,8 @@
         quantity,
         notional,
         initialMargin,
+        openingCost,
+        amountFromOpeningCost,
         marginUsage,
         grossRisk,
         netRisk,

@@ -1,6 +1,6 @@
 {
   "appId": "com.ridelrival.cryptofuturestrademathpro",
-  "appName": "Crypto Futures TradeMath Pro",
+  "appName": "Crypto TradeMath",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

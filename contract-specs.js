@@ -6,7 +6,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : window, function (root) {
   "use strict";
 
-  const CACHE_KEY = "trademath-contract-specs-v1";
+  const CACHE_KEY = "trademath-contract-specs-v2";
+  const LEGACY_CACHE_KEYS = ["trademath-contract-specs-v1"];
   const CACHE_TTL = 6 * 60 * 60 * 1000;
 
   function number(value, fallback = 0) {
@@ -31,12 +32,19 @@
     };
   }
 
-  function readCache() {
+  function readCacheKey(key) {
     try {
-      return JSON.parse(root.localStorage?.getItem(CACHE_KEY) || "{}");
+      return JSON.parse(root.localStorage?.getItem(key) || "{}");
     } catch {
       return {};
     }
+  }
+
+  function readCache() {
+    return LEGACY_CACHE_KEYS.reduce(
+      (cache, key) => ({ ...readCacheKey(key), ...cache }),
+      readCacheKey(CACHE_KEY),
+    );
   }
 
   function writeCache(cache) {
@@ -49,6 +57,25 @@
 
   function cacheId(context) {
     return `${context.exchangeId}:${context.base}:${context.quote}`;
+  }
+
+  function cachedSpecs(specs, offlineFallback = false) {
+    const fetchedAt = Date.parse(specs?.fetchedAt || "");
+    const stale = !Number.isFinite(fetchedAt) || Date.now() - fetchedAt >= CACHE_TTL;
+    return {
+      ...specs,
+      verified: true,
+      cached: true,
+      stale,
+      offlineFallback,
+    };
+  }
+
+  function getCachedSpecs(rawContext) {
+    const context = normalizedContext(rawContext);
+    if (!context.exchangeId || !context.base || !context.quote) return null;
+    const cached = readCache()[cacheId(context)];
+    return cached ? cachedSpecs(cached) : null;
   }
 
   async function fetchJson(url, options = {}) {
@@ -69,6 +96,18 @@
     } finally {
       root.clearTimeout(timer);
     }
+  }
+
+  async function fetchJsonFromCandidates(urls, options = {}) {
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        return await fetchJson(url, options);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("No public endpoint is available");
   }
 
   function finalize(context, values) {
@@ -201,6 +240,102 @@
     });
   }
 
+  function parseAster(context, payload) {
+    const wanted = `${context.base}${context.quote}`;
+    const instrument = payload?.symbols?.find((item) => item.symbol === wanted);
+    if (!instrument || instrument.status !== "TRADING") {
+      throw new Error("Aster instrument not found");
+    }
+    const priceFilter = instrument.filters?.find((item) => item.filterType === "PRICE_FILTER");
+    const lotFilter = instrument.filters?.find((item) => item.filterType === "LOT_SIZE");
+    const notionalFilter = instrument.filters?.find((item) =>
+      ["MIN_NOTIONAL", "NOTIONAL"].includes(item.filterType),
+    );
+    return finalize(context, {
+      quantityMode: "base",
+      contractSize: 1,
+      quantityStep: lotFilter?.stepSize,
+      priceTick: priceFilter?.tickSize,
+      minimumQuantity: lotFilter?.minQty,
+      minimumNotional: notionalFilter?.notional || notionalFilter?.minNotional,
+      source: "https://docs.asterdex.com/product/aster-pro/api/api-documentation",
+      sourceLabel: "Aster perpetual exchange information",
+    });
+  }
+
+  function parseHyperliquid(context, payload) {
+    const universe = payload?.universe || payload?.data?.universe || [];
+    const instrument = universe.find(
+      (item) => cleanAsset(String(item?.name || "").split(":").at(-1)) === context.base,
+    );
+    if (!instrument || instrument.isDelisted) {
+      throw new Error("Hyperliquid instrument not found");
+    }
+    const sizeDecimals = Math.max(0, Math.floor(number(instrument.szDecimals)));
+    const maximumExchangeLeverage = positive(instrument.maxLeverage);
+    return finalize(context, {
+      quantityMode: "base",
+      contractSize: 1,
+      quantityStep: 10 ** -sizeDecimals,
+      priceTick: 10 ** -Math.max(0, 6 - sizeDecimals),
+      minimumQuantity: 10 ** -sizeDecimals,
+      maintenanceMargin: maximumExchangeLeverage ? 50 / maximumExchangeLeverage : 0,
+      maximumExchangeLeverage,
+      source:
+        "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals",
+      sourceLabel: "Hyperliquid perpetual metadata",
+    });
+  }
+
+  function parseLighter(context, payload) {
+    const instruments =
+      payload?.order_books ||
+      payload?.order_book_details ||
+      payload?.data ||
+      (Array.isArray(payload) ? payload : []);
+    const candidates = new Set([
+      context.base,
+      `${context.base}${context.quote}`,
+      `${context.base}USD`,
+      `${context.base}PERP`,
+    ]);
+    const instrument = instruments.find((item) => {
+      const marketType = String(item?.market_type || item?.type || "perp").toLowerCase();
+      const status = String(item?.status || "active").toLowerCase();
+      return (
+        marketType !== "spot" &&
+        !["inactive", "closed", "suspended"].includes(status) &&
+        candidates.has(cleanAsset(item?.symbol))
+      );
+    });
+    if (!instrument) throw new Error("Lighter instrument not found");
+
+    const sizeDecimals = Math.max(
+      0,
+      Math.floor(number(instrument.supported_size_decimals)),
+    );
+    const priceDecimals = Math.max(
+      0,
+      Math.floor(number(instrument.supported_price_decimals)),
+    );
+    const minimumInitialMarginBps = positive(instrument.min_initial_margin_fraction);
+    const maintenanceMarginBps = positive(instrument.maintenance_margin_fraction);
+    return finalize(context, {
+      quantityMode: "base",
+      contractSize: 1,
+      quantityStep: 10 ** -sizeDecimals,
+      priceTick: 10 ** -priceDecimals,
+      minimumQuantity: instrument.min_base_amount,
+      minimumNotional: instrument.min_quote_amount,
+      maintenanceMargin: maintenanceMarginBps ? maintenanceMarginBps / 100 : 0,
+      maximumExchangeLeverage: minimumInitialMarginBps
+        ? 10000 / minimumInitialMarginBps
+        : 0,
+      source: "https://apidocs.lighter.xyz/reference/orderbooks",
+      sourceLabel: "Lighter order-book specifications",
+    });
+  }
+
   const parsers = {
     okx: parseOkx,
     binance: parseBinance,
@@ -208,6 +343,9 @@
     gate: parseGate,
     mexc: parseMexc,
     bitget: parseBitget,
+    aster: parseAster,
+    hyperliquid: parseHyperliquid,
+    lighter: parseLighter,
   };
 
   async function requestSpecs(context) {
@@ -237,17 +375,19 @@
       const contract = `${context.base}_${context.quote}`;
       return parseGate(
         context,
-        await fetchJson(
+        await fetchJsonFromCandidates([
+          `https://fx-api.gateio.ws/api/v4/futures/${encodeURIComponent(settle)}/contracts/${encodeURIComponent(contract)}`,
           `https://api.gateio.ws/api/v4/futures/${encodeURIComponent(settle)}/contracts/${encodeURIComponent(contract)}`,
-        ),
+        ]),
       );
     }
     if (context.exchangeId === "mexc") {
       return parseMexc(
         context,
-        await fetchJson(
+        await fetchJsonFromCandidates([
+          `https://api.mexc.com/api/v1/contract/detail?symbol=${encodeURIComponent(`${context.base}_${context.quote}`)}`,
           `https://contract.mexc.com/api/v1/contract/detail?symbol=${encodeURIComponent(`${context.base}_${context.quote}`)}`,
-        ),
+        ]),
       );
     }
     if (context.exchangeId === "bitget") {
@@ -256,6 +396,30 @@
         context,
         await fetchJson(
           `https://api.bitget.com/api/v2/mix/market/contracts?productType=${encodeURIComponent(productType)}&symbol=${encodeURIComponent(symbol)}`,
+        ),
+      );
+    }
+    if (context.exchangeId === "aster") {
+      return parseAster(
+        context,
+        await fetchJson("https://fapi.asterdex.com/fapi/v1/exchangeInfo"),
+      );
+    }
+    if (context.exchangeId === "hyperliquid") {
+      return parseHyperliquid(
+        context,
+        await fetchJson("https://api.hyperliquid.xyz/info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "meta" }),
+        }),
+      );
+    }
+    if (context.exchangeId === "lighter") {
+      return parseLighter(
+        context,
+        await fetchJson(
+          "https://mainnet.zklighter.elliot.ai/api/v1/orderBooks?filter=perp",
         ),
       );
     }
@@ -268,13 +432,21 @@
     const id = cacheId(context);
     const cache = readCache();
     const cached = cache[id];
-    if (!force && cached && Date.now() - Date.parse(cached.fetchedAt) < CACHE_TTL) {
-      return { ...cached, cached: true };
+    const cachedResult = cached ? cachedSpecs(cached) : null;
+    if (!force && cachedResult && !cachedResult.stale) {
+      return cachedResult;
     }
-    const specs = await requestSpecs(context);
-    cache[id] = specs;
-    writeCache(cache);
-    return specs;
+    try {
+      const specs = await requestSpecs(context);
+      cache[id] = specs;
+      writeCache(cache);
+      return specs;
+    } catch (error) {
+      if (cachedResult) {
+        return cachedSpecs(cached, true);
+      }
+      throw error;
+    }
   }
 
   async function fetchFunding(rawContext) {
@@ -312,20 +484,56 @@
     }
     if (context.exchangeId === "gate") {
       const settle = context.quote.toLowerCase();
-      const payload = await fetchJson(
+      const payload = await fetchJsonFromCandidates([
+        `https://fx-api.gateio.ws/api/v4/futures/${encodeURIComponent(settle)}/contracts/${encodeURIComponent(`${context.base}_${context.quote}`)}`,
         `https://api.gateio.ws/api/v4/futures/${encodeURIComponent(settle)}/contracts/${encodeURIComponent(`${context.base}_${context.quote}`)}`,
-      );
+      ]);
       return {
         ratePercent: number(payload?.funding_rate) * 100,
         nextFundingTime: number(payload?.funding_next_apply) * 1000,
       };
     }
     if (context.exchangeId === "mexc") {
-      const payload = await fetchJson(
+      const payload = await fetchJsonFromCandidates([
+        `https://api.mexc.com/api/v1/contract/ticker?symbol=${encodeURIComponent(`${context.base}_${context.quote}`)}`,
         `https://contract.mexc.com/api/v1/contract/ticker?symbol=${encodeURIComponent(`${context.base}_${context.quote}`)}`,
-      );
+      ]);
       return {
         ratePercent: number(payload?.data?.fundingRate) * 100,
+        nextFundingTime: 0,
+      };
+    }
+    if (context.exchangeId === "bitget") {
+      const productType = context.quote === "USDC" ? "USDC-FUTURES" : "USDT-FUTURES";
+      const payload = await fetchJson(
+        `https://api.bitget.com/api/v2/mix/market/current-fund-rate?symbol=${encodeURIComponent(symbol)}&productType=${encodeURIComponent(productType)}`,
+      );
+      return {
+        ratePercent: number(payload?.data?.[0]?.fundingRate) * 100,
+        nextFundingTime: number(payload?.data?.[0]?.nextUpdate),
+      };
+    }
+    if (context.exchangeId === "aster") {
+      const payload = await fetchJson(
+        `https://fapi.asterdex.com/fapi/v1/premiumIndex?symbol=${encodeURIComponent(symbol)}`,
+      );
+      return {
+        ratePercent: number(payload?.lastFundingRate) * 100,
+        nextFundingTime: number(payload?.nextFundingTime),
+      };
+    }
+    if (context.exchangeId === "hyperliquid") {
+      const payload = await fetchJson("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+      });
+      const universe = payload?.[0]?.universe || [];
+      const index = universe.findIndex(
+        (item) => cleanAsset(String(item?.name || "").split(":").at(-1)) === context.base,
+      );
+      return {
+        ratePercent: number(payload?.[1]?.[index]?.funding) * 100,
         nextFundingTime: 0,
       };
     }
@@ -335,6 +543,7 @@
   return {
     fetchSpecs,
     fetchFunding,
+    getCachedSpecs,
     parsers,
   };
 });

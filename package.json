@@ -1,5 +1,5 @@
 {
-  "name": "crypto-futures-trademath",
+  "name": "crypto-trademath",
   "version": "1.0.0",
   "private": true,
   "description": "Offline-first USDT/USDC perpetual futures trade planning calculator.",

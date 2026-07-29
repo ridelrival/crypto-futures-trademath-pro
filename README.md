@@ -1,4 +1,4 @@
-# Crypto Futures TradeMath
+# Crypto TradeMath
 
 An offline-first PWA for planning one **linear USDT/USDC perpetual-futures position in isolated margin**. It supports English, Indonesian, and Japanese, plus Dark and Light themes.
 
@@ -11,10 +11,10 @@ An offline-first PWA for planning one **linear USDT/USDC perpetual-futures posit
 
 ## Main behavior
 
-- Trade inputs start empty; OKX and USDT are the defaults.
+- Trade inputs, including Coin / Instrument, start empty. OKX is the default exchange and automatically uses USDT settlement.
 - LONG or SHORT is inferred automatically from Entry and Stop Loss.
 - Risk can be entered as a percentage of balance or an exact quote-currency amount.
-- International number formats such as `35,723`, `35.723`, `35,723.00`, and `35.723,00` are accepted.
+- A single dot is always decimal: `70.345` means seventy point three-four-five, `0.7234` remains below one, and `1.000` means one. Use `1,000` or `1000` for one thousand. Mixed formats such as `35,723.00` and `35.723,00` are also accepted.
 - Gross risk, net risk, fees, potential profit, R:R, ROE, required margin, effective leverage, liquidation, and maximum safe leverage are shown separately.
 - Multiple take-profit targets and allocation percentages are supported.
 - Risk warnings begin at 5%; 10% and above is critical.
@@ -33,7 +33,7 @@ The calculation includes:
 - exchange quantity and price rules;
 - raw coin quantity, contract quantity when applicable, and rounded executable coin quantity.
 
-Contract specifications can be loaded from an exchange's public API or entered manually. Public data is cached for six hours. If a symbol or exchange cannot be verified, the app does not invent a step size or contract multiplier: it keeps raw quantity and displays an unverified warning.
+The main calculator uses a generic COIN label. Coin / Instrument is a free-text field with no built-in suggestion list or ticker whitelist, so any ticker can be entered directly in Parameters. The calculator automatically combines it with the exchange settlement and requests public contract specifications after typing; there is no manual load button. Coin / Instrument is cleared on every reload and reset. Hyperliquid and Lighter use USDC; the other built-in presets use USDT. The Settlement result is read-only and follows the same automatic mapping. Public data is cached for six hours and a previously verified cache can still be used with a stale/offline warning when the live request fails. If the field is blank or an instrument cannot be verified, the app does not invent a step size or contract multiplier: it keeps raw quantity and displays an unverified notice without blocking the main calculation.
 
 ### OFF
 
@@ -93,6 +93,9 @@ Net loss per coin at stop =
 
 Raw coin quantity = risk budget / net loss per coin at stop
 Executable quantity = raw quantity rounded down by verified exchange rules
+
+Opening cost = initial margin + estimated entry fee
+Amount cross-check = (opening cost - estimated entry fee) * leverage
 ```
 
 This makes modeled net risk equal to the selected amount before exchange rounding, or slightly lower after rounding down. With Stop-Market, the modeled stop exit is the trigger price. With Stop-Limit, it is the entered limit price.
@@ -106,9 +109,9 @@ SHORT: Entry < Stop Loss < liquidation
 
 ## Exchange presets and public specifications
 
-Fee presets include Binance, Bybit, OKX, Gate.io, Bitget, MEXC, Hyperliquid, Aster, Lighter, and Custom/Manual. Fees vary by pair, tier, region, promotion, token discount, and execution method, so verify the displayed rate in the exchange account.
+The single Exchange selector is ordered Binance, Bybit, OKX, Hyperliquid, Aster, Gate.io, Bitget, MEXC, Lighter, and Custom/Manual. The Exchange & Execution panel appears above Parameters and remembers its expanded or collapsed state. Fees vary by pair, tier, region, promotion, token discount, and execution method, so verify the displayed rate in the exchange account.
 
-Automatic public contract-specification adapters are included for OKX, Binance, Bybit, Gate.io, Bitget, and MEXC. Unsupported or unavailable sources fall back to manual, explicitly unverified input.
+Automatic public contract-specification adapters are included for OKX, Binance, Bybit, Gate.io, Bitget, MEXC, Hyperliquid, Aster, and Lighter. Gate.io and MEXC each have primary and alternative public endpoints. A venue may still block direct browser requests through CORS or a regional network rule; in that case the calculator uses a verified cached copy when available, otherwise it falls back to manual, explicitly unverified input.
 
 ## GitHub Pages
 

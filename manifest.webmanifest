@@ -1,6 +1,6 @@
 {
   "id": "./",
-  "name": "Crypto Futures TradeMath",
+  "name": "Crypto TradeMath",
   "short_name": "TradeMath",
   "description": "Offline-first USDT/USDC perpetual futures risk, position sizing, fee, liquidation, and trade planning calculator.",
   "start_url": "./",

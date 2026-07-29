@@ -205,6 +205,7 @@ a {
 .nav-button,
 .language-button,
 .theme-button,
+.refresh-button,
 .icon-button {
   border: 1px solid transparent;
   background: transparent;
@@ -227,14 +228,17 @@ a {
 .language-button:hover,
 .language-button:focus-visible,
 .theme-button:hover,
-.theme-button:focus-visible {
+.theme-button:focus-visible,
+.refresh-button:hover,
+.refresh-button:focus-visible {
   border-color: var(--border);
   background: var(--surface-2);
   color: var(--hover-text);
 }
 
 .language-button,
-.theme-button {
+.theme-button,
+.refresh-button {
   display: inline-flex;
   min-width: 52px;
   min-height: 42px;
@@ -249,6 +253,37 @@ a {
   min-width: 82px;
 }
 
+.refresh-button {
+  min-width: 42px;
+  padding: 0;
+}
+
+.refresh-icon {
+  display: inline-block;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.refresh-button.refreshing .refresh-icon {
+  animation: refresh-spin 0.8s linear infinite;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .app-shell {
   width: min(1580px, 100%);
   margin: 0 auto;
@@ -258,7 +293,7 @@ a {
 .attention-banner {
   display: flex;
   min-height: 58px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 10px;
   margin-bottom: 24px;
@@ -267,8 +302,39 @@ a {
   border-radius: 12px;
   background: var(--amber-soft);
   color: #ffd35c;
-  text-align: center;
+  text-align: left;
   font-size: 16px;
+}
+
+.attention-content {
+  display: grid;
+  gap: 6px;
+}
+
+.attention-row {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.attention-heading strong {
+  line-height: 1.25;
+}
+
+.attention-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+}
+
+.attention-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .workspace {
@@ -288,7 +354,28 @@ a {
   gap: 16px;
 }
 
+.input-layout-stack {
+  display: contents;
+}
+
+#exchangeExecutionPanel {
+  order: 1;
+}
+
+#parametersPanel {
+  order: 2;
+}
+
+#exitPlanPanel {
+  order: 3;
+}
+
+.input-column .details-panel {
+  order: 4;
+}
+
 .panel,
+.results-panel,
 .result-details,
 .technical-note {
   overflow: hidden;
@@ -331,7 +418,6 @@ a {
 }
 
 .status-pill,
-.verified-badge,
 .allocation-pill {
   display: inline-flex;
   min-height: 27px;
@@ -359,11 +445,6 @@ a {
   color: #ff96aa;
 }
 
-.verified-badge {
-  border-color: #375044;
-  color: #9fd5c5;
-}
-
 .allocation-pill.valid {
   border-color: var(--green-border);
   color: var(--green);
@@ -389,6 +470,10 @@ a {
   display: grid;
   min-width: 0;
   gap: 8px;
+}
+
+.instrument-field {
+  grid-column: 1 / -1;
 }
 
 .field > span:first-child,
@@ -515,6 +600,15 @@ select:focus,
   box-shadow: 0 0 0 3px rgb(255 85 116 / 12%);
 }
 
+.field-target .input-shell {
+  border-color: #1e604f;
+}
+
+.field-target .input-shell:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgb(8 212 173 / 12%);
+}
+
 .fee-rate-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -581,6 +675,21 @@ select:focus,
   padding-bottom: 24px;
 }
 
+.target-allocation-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 24px 22px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.target-allocation-note strong {
+  flex: 0 0 auto;
+  color: var(--green);
+}
+
 .target-toggle {
   display: flex;
   align-items: center;
@@ -599,7 +708,9 @@ input[type="checkbox"] {
 }
 
 .details-panel summary,
+.targets-panel summary,
 .exchange-panel summary,
+.results-panel-heading,
 .result-details summary {
   display: flex;
   align-items: center;
@@ -611,6 +722,7 @@ input[type="checkbox"] {
 }
 
 .details-panel summary::-webkit-details-marker,
+.targets-panel summary::-webkit-details-marker,
 .exchange-panel summary::-webkit-details-marker,
 .result-details summary::-webkit-details-marker {
   display: none;
@@ -643,11 +755,24 @@ input[type="checkbox"] {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  justify-content: end;
+  margin-left: auto;
+}
+
+.exchange-summary-actions .summary-arrow {
+  margin-left: 0;
 }
 
 .exchange-panel summary {
   border-bottom: 0;
+}
+
+.targets-panel > summary {
+  border-bottom: 0;
+}
+
+.targets-panel[open] > summary {
+  border-bottom: 1px solid var(--border);
 }
 
 .exchange-panel[open] .exchange-panel-content {
@@ -719,7 +844,7 @@ input[type="checkbox"] {
   transition: transform 180ms ease;
 }
 
-details[open] .summary-arrow {
+details[open] > summary .summary-arrow {
   transform: rotate(180deg);
 }
 
@@ -773,7 +898,7 @@ details[open] .summary-arrow {
 
 .specs-toolbar {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto auto;
+  grid-template-columns: minmax(160px, 1fr) auto;
   gap: 10px;
   align-items: end;
   padding: 16px 24px 0;
@@ -808,7 +933,8 @@ details[open] .summary-arrow {
 }
 
 .spec-status.unverified,
-.spec-status.loading {
+.spec-status.loading,
+.spec-status.stale {
   border-color: var(--amber-border);
   background: var(--amber-soft);
   color: var(--amber);
@@ -844,6 +970,31 @@ details[open] .summary-arrow {
 .results-column {
   display: grid;
   gap: 16px;
+}
+
+.results-panel {
+  background: transparent;
+}
+
+.results-panel-heading {
+  color: var(--content-strong);
+  cursor: default;
+}
+
+.results-panel-heading > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.results-panel-heading strong {
+  font-size: 16px;
+}
+
+.results-content {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-top: 1px solid var(--border);
 }
 
 .alerts {
@@ -930,7 +1081,7 @@ details[open] .summary-arrow {
   display: grid;
   gap: 2px;
   margin-right: auto;
-  text-align: right;
+  text-align: left;
 }
 
 .direction-copy small {
@@ -998,6 +1149,23 @@ details[open] .summary-arrow {
 
 .context-strip strong {
   font-size: 13px;
+}
+
+.context-select {
+  width: fit-content;
+  min-width: 88px;
+  min-height: 30px;
+  padding: 4px 28px 4px 0;
+  border: 0;
+  background-color: transparent;
+  color: var(--content-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.context-select option {
+  background: var(--input-bg);
+  color: var(--text);
 }
 
 .metric-grid {
@@ -1481,11 +1649,6 @@ details[open] .summary-arrow {
   color: #b52643;
 }
 
-:root[data-theme="light"] .verified-badge {
-  border-color: #94b9aa;
-  color: #416c5e;
-}
-
 :root[data-theme="light"] .alert-error {
   background: #fff3f5;
   color: #a9223d;
@@ -1553,9 +1716,19 @@ details[open] .summary-arrow {
     align-items: start;
   }
 
-  .input-column .panel:first-child,
-  .input-column .details-panel {
-    grid-column: 1 / -1;
+  .input-layout-stack {
+    display: grid;
+    min-width: 0;
+    gap: 16px;
+    align-content: start;
+  }
+
+  .input-primary-stack {
+    grid-column: 1;
+  }
+
+  .input-parameters-stack {
+    grid-column: 2;
   }
 
   .results-column {
@@ -1604,9 +1777,8 @@ details[open] .summary-arrow {
     grid-template-columns: 1fr;
   }
 
-  .input-column .panel:first-child,
-  .input-column .details-panel {
-    grid-column: auto;
+  .input-layout-stack {
+    display: contents;
   }
 
   .field-grid {
@@ -1620,10 +1792,6 @@ details[open] .summary-arrow {
 
   .specs-toolbar {
     grid-template-columns: 1fr;
-  }
-
-  .specs-toolbar .secondary-button {
-    width: 100%;
   }
 
   .trade-controls {
@@ -1716,7 +1884,7 @@ details[open] .summary-arrow {
   }
 
   .brand > span > span {
-    display: none;
+    display: inline;
   }
 
   .header-actions {
@@ -1734,7 +1902,9 @@ details[open] .summary-arrow {
   .panel-heading,
   .panel-heading.compact,
   .details-panel summary,
+  .targets-panel summary,
   .exchange-panel summary,
+  .results-panel-heading,
   .result-details summary {
     padding: 16px 14px;
   }
@@ -1750,7 +1920,6 @@ details[open] .summary-arrow {
   }
 
   .status-pill,
-  .verified-badge,
   .allocation-pill {
     max-width: 46%;
     white-space: normal;
@@ -1821,6 +1990,14 @@ details[open] .summary-arrow {
     min-width: 72px;
   }
 
+  .context-select {
+    width: fit-content;
+    min-width: 82px;
+    height: 32px;
+    padding: 4px 24px 4px 0;
+    font-size: 16px;
+  }
+
   .number-format-note {
     margin-right: 14px;
     margin-left: 14px;
@@ -1845,6 +2022,16 @@ details[open] .summary-arrow {
 
   .target-row input {
     padding: 0 10px;
+  }
+
+  .target-allocation-note {
+    align-items: flex-start;
+    margin: 10px 18px 18px;
+  }
+
+  .results-content {
+    gap: 12px;
+    padding: 12px 10px;
   }
 
   .metric-grid {
