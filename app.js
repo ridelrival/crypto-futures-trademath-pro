@@ -200,10 +200,27 @@
   }
 
   function applyTheme(nextTheme, persist = true) {
-    const theme = nextTheme === "light" ? "light" : "dark";
+    const supportedThemes = ["dark", "light", "pitch-black"];
+    const theme = supportedThemes.includes(nextTheme) ? nextTheme : "dark";
+    const themeKey = {
+      dark: "darkTheme",
+      light: "lightTheme",
+      "pitch-black": "pitchBlackTheme",
+    }[theme];
+    const themeIcon = {
+      dark: "☾",
+      light: "☀",
+      "pitch-black": "●",
+    }[theme];
     document.documentElement.dataset.theme = theme;
-    $("themeIcon").textContent = theme === "light" ? "☀" : "☾";
-    $("activeTheme").textContent = I18n.t(theme === "light" ? "lightTheme" : "darkTheme");
+    $("themeIcon").textContent = themeIcon;
+    $("activeTheme").textContent = I18n.t(themeKey);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute(
+        "content",
+        theme === "light" ? "#ffffff" : theme === "pitch-black" ? "#000000" : "#0c0e0f",
+      );
     document
       .querySelectorAll("[data-theme-option]")
       .forEach((button) => {
@@ -567,6 +584,11 @@
     const panel = $("advancedResultsPanel");
     if (!panel) return;
     panel.open = localStorage.getItem(ADVANCED_RESULTS_PANEL_KEY) !== "closed";
+  }
+
+  function persistAdvancedResultsPanelState(open = $("advancedResultsPanel")?.open) {
+    if (typeof open !== "boolean") return;
+    localStorage.setItem(ADVANCED_RESULTS_PANEL_KEY, open ? "open" : "closed");
   }
 
   function scheduleSpecsFetch(force = false) {
@@ -1397,11 +1419,16 @@
     $("exitPlanPanel").addEventListener("toggle", (event) => {
       localStorage.setItem(EXIT_PLAN_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
     });
-    $("advancedResultsPanel").addEventListener("toggle", (event) => {
-      localStorage.setItem(
-        ADVANCED_RESULTS_PANEL_KEY,
-        event.currentTarget.open ? "open" : "closed",
-      );
+    const advancedResultsPanel = $("advancedResultsPanel");
+    advancedResultsPanel.querySelector("summary")?.addEventListener("click", () => {
+      persistAdvancedResultsPanelState(!advancedResultsPanel.open);
+    });
+    advancedResultsPanel.addEventListener("toggle", () => {
+      persistAdvancedResultsPanelState(advancedResultsPanel.open);
+    });
+    window.addEventListener("pagehide", () => persistAdvancedResultsPanelState());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") persistAdvancedResultsPanelState();
     });
     elements.tp2Enabled.addEventListener("change", () => handleTargetToggle(2));
     elements.tp3Enabled.addEventListener("change", () => handleTargetToggle(3));
