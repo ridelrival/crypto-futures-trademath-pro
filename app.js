@@ -11,6 +11,7 @@
   const INSTRUMENT_KEY = "trademath-last-instrument";
   const EXIT_PLAN_PANEL_KEY = "trademath-exit-plan-panel-open";
   const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open";
+  const ADVANCED_RESULTS_PANEL_KEY = "trademath-advanced-results-panel-open";
   const REFRESH_STATE_KEY = "trademath-refresh-state-v1";
 
   const $ = (id) => document.getElementById(id);
@@ -560,6 +561,12 @@
     const panel = $("exitPlanPanel");
     if (!panel) return;
     panel.open = localStorage.getItem(EXIT_PLAN_PANEL_KEY) !== "closed";
+  }
+
+  function restoreAdvancedResultsPanelState() {
+    const panel = $("advancedResultsPanel");
+    if (!panel) return;
+    panel.open = localStorage.getItem(ADVANCED_RESULTS_PANEL_KEY) !== "closed";
   }
 
   function scheduleSpecsFetch(force = false) {
@@ -1390,6 +1397,12 @@
     $("exitPlanPanel").addEventListener("toggle", (event) => {
       localStorage.setItem(EXIT_PLAN_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
     });
+    $("advancedResultsPanel").addEventListener("toggle", (event) => {
+      localStorage.setItem(
+        ADVANCED_RESULTS_PANEL_KEY,
+        event.currentTarget.open ? "open" : "closed",
+      );
+    });
     elements.tp2Enabled.addEventListener("change", () => handleTargetToggle(2));
     elements.tp3Enabled.addEventListener("change", () => handleTargetToggle(3));
     $("resetButton").addEventListener("click", resetForm);
@@ -1428,6 +1441,7 @@
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
     restoreExitPlanPanelState();
     restoreExchangePanelState();
+    restoreAdvancedResultsPanelState();
     setupDialogs();
     setupEvents();
     setupInstall();
