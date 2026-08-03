@@ -96,6 +96,9 @@
   let lastResult = null;
   let deferredInstallPrompt = null;
   let toastTimer = null;
+  let dialogScrollY = 0;
+
+  const SETTINGS_CHILD_DIALOG_IDS = ["historyDialog", "languageDialog", "themeDialog"];
 
   function locale() {
     const map = { en: "en-US", id: "id-ID", ja: "ja-JP" };
@@ -1275,53 +1278,111 @@
     applyExchange(true);
   }
 
+  function lockDialogScroll() {
+    if (document.documentElement.classList.contains("dialog-stack-open")) return;
+    dialogScrollY = window.scrollY;
+    document.documentElement.classList.add("dialog-stack-open");
+    document.body.classList.add("dialog-stack-open");
+    document.body.style.top = `-${dialogScrollY}px`;
+  }
+
+  function syncDialogLayers() {
+    const dialogs = Array.from(document.querySelectorAll("dialog"));
+    const openDialogs = dialogs.filter((dialog) => dialog.open);
+    const activeDialog = openDialogs[openDialogs.length - 1] || null;
+
+    dialogs.forEach((dialog) => {
+      dialog.classList.toggle("dialog-covered", dialog.open && dialog !== activeDialog);
+    });
+
+    const pageLocked = document.documentElement.classList.contains("dialog-stack-open");
+    if (openDialogs.length && !pageLocked) {
+      lockDialogScroll();
+      return;
+    }
+
+    if (!openDialogs.length && pageLocked) {
+      document.documentElement.classList.remove("dialog-stack-open");
+      document.body.classList.remove("dialog-stack-open");
+      document.body.style.top = "";
+      window.scrollTo(0, dialogScrollY);
+    }
+  }
+
+  function openDialog(dialogId) {
+    const dialog = $(dialogId);
+    if (!dialog.open) {
+      if (!document.querySelector("dialog[open]")) lockDialogScroll();
+      dialog.showModal();
+    }
+    syncDialogLayers();
+  }
+
+  function closeDialog(dialogId) {
+    const dialog = $(dialogId);
+    if (dialog.open) dialog.close();
+    syncDialogLayers();
+  }
+
+  function closeSettingsStack() {
+    SETTINGS_CHILD_DIALOG_IDS.forEach((dialogId) => {
+      const dialog = $(dialogId);
+      if (dialog.open) dialog.close();
+    });
+    if ($("settingsDialog").open) $("settingsDialog").close();
+    syncDialogLayers();
+  }
+
   function setupDialogs() {
     $("settingsButton").addEventListener("click", () => {
       syncSettingsValues();
-      $("settingsDialog").showModal();
+      openDialog("settingsDialog");
     });
     $("historyButton").addEventListener("click", () => {
       renderHistory();
-      $("historyDialog").showModal();
+      openDialog("historyDialog");
     });
     $("languageButton").addEventListener("click", () => {
       $("languageSearch").value = "";
       renderLanguages();
-      $("languageDialog").showModal();
+      openDialog("languageDialog");
       window.setTimeout(() => $("languageSearch").focus(), 30);
     });
     $("themeButton").addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme || "dark", false);
-      $("themeDialog").showModal();
+      openDialog("themeDialog");
     });
     $("settingsHistoryAction").addEventListener("click", () => {
-      $("settingsDialog").close();
       $("historyButton").click();
     });
     $("settingsLanguageAction").addEventListener("click", () => {
-      $("settingsDialog").close();
       $("languageButton").click();
     });
     $("settingsThemeAction").addEventListener("click", () => {
-      $("settingsDialog").close();
       $("themeButton").click();
     });
     $("settingsRefreshAction").addEventListener("click", () => {
-      $("settingsDialog").close();
+      closeSettingsStack();
       refreshApplicationData();
     });
     document.querySelectorAll("[data-theme-option]").forEach((button) => {
       button.addEventListener("click", () => {
         applyTheme(button.dataset.themeOption);
-        $("themeDialog").close();
+        closeDialog("themeDialog");
       });
     });
     document.querySelectorAll("[data-close-dialog]").forEach((button) => {
-      button.addEventListener("click", () => $(button.dataset.closeDialog).close());
+      button.addEventListener("click", () => closeDialog(button.dataset.closeDialog));
     });
     document.querySelectorAll("dialog").forEach((dialog) => {
+      dialog.addEventListener("close", syncDialogLayers);
       dialog.addEventListener("click", (event) => {
-        if (event.target === dialog) dialog.close();
+        if (event.target !== dialog) return;
+        if (dialog.id === "settingsDialog" || $("settingsDialog").open) {
+          closeSettingsStack();
+          return;
+        }
+        closeDialog(dialog.id);
       });
     });
   }

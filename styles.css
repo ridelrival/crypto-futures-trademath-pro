@@ -1441,6 +1441,28 @@ details[open] > summary .summary-arrow {
   background: var(--modal-bg);
   color: var(--text);
   box-shadow: var(--shadow);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html.dialog-stack-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.dialog-stack-open {
+  position: fixed;
+  right: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.modal.dialog-covered {
+  overflow: hidden;
+  pointer-events: none;
+  touch-action: none;
 }
 
 .modal::backdrop {
