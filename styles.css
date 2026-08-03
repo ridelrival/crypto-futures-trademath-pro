@@ -151,6 +151,20 @@ select {
   font: inherit;
 }
 
+select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
+:root[data-theme="light"] select {
+  color-scheme: light;
+}
+
 button,
 select,
 input[type="checkbox"] {
@@ -245,6 +259,7 @@ a {
 .language-button,
 .theme-button,
 .refresh-button,
+.settings-button,
 .icon-button {
   border: 1px solid transparent;
   background: transparent;
@@ -269,7 +284,9 @@ a {
 .theme-button:hover,
 .theme-button:focus-visible,
 .refresh-button:hover,
-.refresh-button:focus-visible {
+.refresh-button:focus-visible,
+.settings-button:hover,
+.settings-button:focus-visible {
   border-color: var(--border);
   background: var(--surface-2);
   color: var(--hover-text);
@@ -277,7 +294,8 @@ a {
 
 .language-button,
 .theme-button,
-.refresh-button {
+.refresh-button,
+.settings-button {
   display: inline-flex;
   min-width: 52px;
   min-height: 42px;
@@ -295,6 +313,17 @@ a {
 .refresh-button {
   min-width: 42px;
   padding: 0;
+}
+
+.settings-button {
+  display: none;
+  min-width: 42px;
+  padding: 0;
+}
+
+.settings-icon {
+  font-size: 21px;
+  line-height: 1;
 }
 
 .refresh-icon {
@@ -1560,6 +1589,63 @@ details[open] > summary .summary-arrow {
   padding: 8px 24px;
 }
 
+.settings-modal {
+  width: min(560px, calc(100vw - 24px));
+}
+
+.settings-list {
+  display: grid;
+  gap: 9px;
+  padding: 18px 20px 22px;
+}
+
+.settings-option {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+}
+
+.settings-option:hover,
+.settings-option:focus-visible {
+  border-color: var(--green-border);
+  background: var(--green-soft);
+}
+
+.settings-option-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--input-addon);
+  color: var(--green);
+  font-size: 20px;
+}
+
+.settings-option > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.settings-option small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.settings-option > span:last-child {
+  color: var(--muted);
+  font-size: 24px;
+}
+
 .language-option {
   display: flex;
   min-height: 54px;
@@ -1822,6 +1908,17 @@ details[open] > summary .summary-arrow {
   .brand img {
     width: 40px;
     height: 40px;
+  }
+
+  #historyButton,
+  #languageButton,
+  #themeButton,
+  #refreshButton {
+    display: none;
+  }
+
+  .settings-button {
+    display: inline-flex;
   }
 
   .nav-button {

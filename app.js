@@ -215,6 +215,7 @@
     document.documentElement.dataset.theme = theme;
     $("themeIcon").textContent = themeIcon;
     $("activeTheme").textContent = I18n.t(themeKey);
+    if ($("settingsThemeValue")) $("settingsThemeValue").textContent = I18n.t(themeKey);
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute(
@@ -229,6 +230,21 @@
         button.setAttribute("aria-selected", String(active));
       });
     if (persist) localStorage.setItem(THEME_KEY, theme);
+  }
+
+  function syncSettingsValues() {
+    const languageValue = $("settingsLanguageValue");
+    const themeValue = $("settingsThemeValue");
+    if (languageValue) languageValue.textContent = I18n.getLanguage().toUpperCase();
+    if (themeValue) {
+      const theme = document.documentElement.dataset.theme || "dark";
+      const themeKey = {
+        dark: "darkTheme",
+        light: "lightTheme",
+        "pitch-black": "pitchBlackTheme",
+      }[theme] || "darkTheme";
+      themeValue.textContent = I18n.t(themeKey);
+    }
   }
 
   function syncRefreshButtonLabel(refreshing = false) {
@@ -1260,6 +1276,10 @@
   }
 
   function setupDialogs() {
+    $("settingsButton").addEventListener("click", () => {
+      syncSettingsValues();
+      $("settingsDialog").showModal();
+    });
     $("historyButton").addEventListener("click", () => {
       renderHistory();
       $("historyDialog").showModal();
@@ -1273,6 +1293,22 @@
     $("themeButton").addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme || "dark", false);
       $("themeDialog").showModal();
+    });
+    $("settingsHistoryAction").addEventListener("click", () => {
+      $("settingsDialog").close();
+      $("historyButton").click();
+    });
+    $("settingsLanguageAction").addEventListener("click", () => {
+      $("settingsDialog").close();
+      $("languageButton").click();
+    });
+    $("settingsThemeAction").addEventListener("click", () => {
+      $("settingsDialog").close();
+      $("themeButton").click();
+    });
+    $("settingsRefreshAction").addEventListener("click", () => {
+      $("settingsDialog").close();
+      refreshApplicationData();
     });
     document.querySelectorAll("[data-theme-option]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -1455,6 +1491,7 @@
       renderHistory();
       renderLanguages($("languageSearch")?.value || "");
       applyTheme(document.documentElement.dataset.theme || "dark", false);
+      syncSettingsValues();
       syncRefreshButtonLabel();
       syncAdvancedControls();
       calculateAndRender();
@@ -1466,6 +1503,7 @@
     syncRefreshButtonLabel();
     arrangeInputPanels();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
+    syncSettingsValues();
     restoreExitPlanPanelState();
     restoreExchangePanelState();
     restoreAdvancedResultsPanelState();
