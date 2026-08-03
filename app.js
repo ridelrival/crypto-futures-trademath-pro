@@ -97,8 +97,46 @@
   let deferredInstallPrompt = null;
   let toastTimer = null;
   let dialogScrollY = 0;
+  let activeSelectControl = null;
 
   const SETTINGS_CHILD_DIALOG_IDS = ["historyDialog", "languageDialog", "themeDialog"];
+
+  function setInputModality(modality) {
+    document.documentElement.dataset.inputModality = modality;
+  }
+
+  function usesPointerInput() {
+    return document.documentElement.dataset.inputModality !== "keyboard";
+  }
+
+  function setupInputModality() {
+    setInputModality("pointer");
+    document.addEventListener("pointerdown", () => setInputModality("pointer"), true);
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (
+          event.key === "Tab" ||
+          event.key === "Enter" ||
+          event.key === " " ||
+          event.key.startsWith("Arrow")
+        ) {
+          setInputModality("keyboard");
+        }
+      },
+      true,
+    );
+  }
+
+  function clearPointerFocus() {
+    if (!usesPointerInput()) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active !== document.body) active.blur();
+      });
+    });
+  }
 
   function locale() {
     const map = { en: "en-US", id: "id-ID", ja: "ja-JP" };
@@ -938,6 +976,7 @@
 
   function calculateAndRender() {
     if (!Calculator || !I18n) return;
+    refreshThemedSelects();
     $("instrumentSettlement").textContent = elements.quoteCurrency.value;
     $("settlementDisplay").textContent = elements.quoteCurrency.value;
     side = Calculator.detectTradeSide(elements.entryPrice.value, elements.stopLoss.value);
@@ -1232,10 +1271,149 @@
         button.addEventListener("click", () => {
           I18n.setLanguage(language.code);
           renderLanguages($("languageSearch").value);
-          $("languageDialog").close();
+          closeDialog("languageDialog");
         });
         list.append(button);
       });
+  }
+
+  function selectFieldLabel(select) {
+    const explicitLabel = select.getAttribute("aria-label");
+    if (explicitLabel) return explicitLabel;
+    const field = select.closest(".field");
+    const fieldLabel = field?.querySelector(":scope > span:first-child");
+    if (fieldLabel?.textContent.trim()) return fieldLabel.textContent.trim();
+    const namedLabel = select.id ? document.querySelector(`label[for="${select.id}"]`) : null;
+    return namedLabel?.textContent.trim() || select.name || "Select";
+  }
+
+  function selectedOptionLabel(select) {
+    return select.selectedOptions[0]?.textContent.trim() || "";
+  }
+
+  function themedSelectHost(select) {
+    return select.closest(".themed-select-shell");
+  }
+
+  function syncThemedSelect(select) {
+    const host = themedSelectHost(select);
+    if (!host) return;
+    const trigger = host.querySelector(".themed-select-trigger");
+    const value = trigger?.querySelector(".themed-select-value");
+    if (value) value.textContent = selectedOptionLabel(select);
+    if (trigger) {
+      trigger.disabled = select.disabled;
+      trigger.setAttribute("aria-label", selectFieldLabel(select));
+      trigger.setAttribute("aria-disabled", String(select.disabled));
+    }
+    host.classList.toggle("is-disabled", select.disabled);
+  }
+
+  function refreshThemedSelects() {
+    document.querySelectorAll("select.native-select-control").forEach(syncThemedSelect);
+  }
+
+  function closeActiveSelectDialog() {
+    if (activeSelectControl) {
+      themedSelectHost(activeSelectControl)
+        ?.querySelector(".themed-select-trigger")
+        ?.setAttribute("aria-expanded", "false");
+    }
+    activeSelectControl = null;
+  }
+
+  function renderThemedSelectOptions(select) {
+    const list = $("themedSelectList");
+    list.replaceChildren();
+    Array.from(select.options).forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "themed-select-option";
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-label", option.textContent);
+      button.setAttribute("aria-selected", String(option.value === select.value));
+      button.disabled = option.disabled;
+      button.textContent = option.textContent;
+      if (option.value === select.value) button.classList.add("active");
+      button.addEventListener("click", () => {
+        if (select.value !== option.value) {
+          select.value = option.value;
+          syncThemedSelect(select);
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        closeDialog("themedSelectDialog");
+      });
+      list.append(button);
+    });
+  }
+
+  function openThemedSelect(select) {
+    if (select.disabled) return;
+    activeSelectControl = select;
+    $("themedSelectTitle").textContent = selectFieldLabel(select);
+    renderThemedSelectOptions(select);
+    themedSelectHost(select)
+      ?.querySelector(".themed-select-trigger")
+      ?.setAttribute("aria-expanded", "true");
+    openDialog("themedSelectDialog");
+    if (!usesPointerInput()) {
+      window.requestAnimationFrame(() =>
+        $("themedSelectList").querySelector(".active")?.focus({ preventScroll: true }),
+      );
+    }
+  }
+
+  function enhanceSelect(select) {
+    if (select.classList.contains("native-select-control")) return;
+    const host = document.createElement("span");
+    host.className = "themed-select-shell";
+    if (select.classList.contains("inline-select")) host.classList.add("is-inline");
+    if (select.classList.contains("compact-select")) host.classList.add("is-compact");
+    if (select.classList.contains("quote-select")) host.classList.add("is-quote");
+    if (select.classList.contains("context-select")) host.classList.add("is-context");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "themed-select-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", selectFieldLabel(select));
+
+    const value = document.createElement("span");
+    value.className = "themed-select-value";
+    const arrow = document.createElement("span");
+    arrow.className = "themed-select-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "⌄";
+    trigger.append(value, arrow);
+
+    select.before(host);
+    host.append(select, trigger);
+    select.classList.add("native-select-control");
+    select.hidden = true;
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
+    trigger.addEventListener("click", () => openThemedSelect(select));
+    new MutationObserver(() => syncThemedSelect(select)).observe(select, {
+      attributes: true,
+      attributeFilter: ["disabled"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    syncThemedSelect(select);
+  }
+
+  function setupThemedSelects() {
+    document.querySelectorAll("select").forEach(enhanceSelect);
+    document.addEventListener(
+      "change",
+      (event) => {
+        if (event.target instanceof HTMLSelectElement) syncThemedSelect(event.target);
+      },
+      true,
+    );
+    $("themedSelectDialog").addEventListener("close", closeActiveSelectDialog);
   }
 
   async function fetchFunding() {
@@ -1316,12 +1494,19 @@
       dialog.showModal();
     }
     syncDialogLayers();
+    if (usesPointerInput()) {
+      dialog.tabIndex = -1;
+      window.requestAnimationFrame(() => {
+        if (dialog.open) dialog.focus({ preventScroll: true });
+      });
+    }
   }
 
   function closeDialog(dialogId) {
     const dialog = $(dialogId);
     if (dialog.open) dialog.close();
     syncDialogLayers();
+    clearPointerFocus();
   }
 
   function closeSettingsStack() {
@@ -1331,6 +1516,7 @@
     });
     if ($("settingsDialog").open) $("settingsDialog").close();
     syncDialogLayers();
+    clearPointerFocus();
   }
 
   function setupDialogs() {
@@ -1346,7 +1532,9 @@
       $("languageSearch").value = "";
       renderLanguages();
       openDialog("languageDialog");
-      window.setTimeout(() => $("languageSearch").focus(), 30);
+      if (!usesPointerInput()) {
+        window.setTimeout(() => $("languageSearch").focus(), 30);
+      }
     });
     $("themeButton").addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme || "dark", false);
@@ -1561,8 +1749,10 @@
 
   function init() {
     I18n.apply();
+    setupInputModality();
     syncRefreshButtonLabel();
     arrangeInputPanels();
+    setupThemedSelects();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
     syncSettingsValues();
     restoreExitPlanPanelState();
