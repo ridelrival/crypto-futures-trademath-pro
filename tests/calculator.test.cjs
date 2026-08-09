@@ -98,11 +98,10 @@ test("multiple targets use allocation-weighted profit", () => {
   assert.ok(Math.abs(result.values.grossProfit - result.values.quantity * expectedDistance) < 1e-6);
 });
 
-test("accepts common international and mixed number formats", () => {
+test("uses a single dot as a decimal and keeps unambiguous grouped formats", () => {
   const thousandFormats = [
     "1000",
     "1,000",
-    "1.000",
     "1,000.00",
     "1.000,00",
     "1.000.00",
@@ -112,15 +111,26 @@ test("accepts common international and mixed number formats", () => {
   const priceFormats = [
     "35723",
     "35,723",
-    "35.723",
     "35,723.00",
     "35.723,00",
     "35.723.00",
   ];
   priceFormats.forEach((value) => assert.equal(parseFlexibleNumber(value), 35723));
+  assert.equal(parseFlexibleNumber("1.000"), 1);
+  assert.equal(parseFlexibleNumber("35.723"), 35.723);
+  assert.equal(parseFlexibleNumber("70.345"), 70.345);
+  assert.equal(parseFlexibleNumber("0.7234"), 0.7234);
+  assert.equal(parseFlexibleNumber("0,7234"), 0.7234);
   assert.equal(parseFlexibleNumber("0.125"), 0.125);
   assert.equal(parseFlexibleNumber("1.2340"), 1.234);
   assert.equal(parseFlexibleNumber("1,23,456"), 123456);
+});
+
+test("a decimal balance below one thousand remains a small account value", () => {
+  const result = calculate(baseInput({ balance: "70.345" }));
+  assert.equal(result.valid, true);
+  assert.ok(Math.abs(result.values.riskBudget - 3.51725) < 1e-10);
+  assert.ok(result.values.netRisk <= 3.51725);
 });
 
 test("risk in quote currency matches the equivalent percentage risk", () => {
@@ -251,6 +261,44 @@ test("contract-based instruments round contracts before converting back to coin 
   assert.equal(result.valid, true);
   assert.equal(result.values.contractQuantity, 92.59);
   assert.ok(Math.abs(result.values.executableCoinQuantity - 0.9259) < 1e-12);
+});
+
+test("all financial outputs use the executable rounded quantity", () => {
+  const result = calculate(
+    baseInput({
+      quantityMode: "base",
+      quantityStep: 0.1,
+      minimumQuantity: 0.1,
+    }),
+  );
+  assert.equal(result.valid, true);
+  assert.equal(result.values.rawCoinQuantity > result.values.executableCoinQuantity, true);
+  assert.equal(
+    result.values.notional,
+    result.values.executableCoinQuantity * 65491,
+  );
+  assert.equal(
+    result.values.grossProfit,
+    result.values.executableCoinQuantity * (65491 - 64771),
+  );
+  assert.equal(
+    result.values.grossRisk,
+    result.values.executableCoinQuantity * (65545 - 65491),
+  );
+});
+
+test("opening cost and amount cross-check reproduce the executable notional", () => {
+  const result = calculate(
+    baseInput({
+      makerFee: 0.02,
+      entryExecution: "maker",
+    }),
+  );
+  assert.equal(result.valid, true);
+  assert.ok(result.values.openingCost > result.values.initialMargin);
+  assert.ok(
+    Math.abs(result.values.amountFromOpeningCost - result.values.notional) < 1e-8,
+  );
 });
 
 test("unverified specifications keep the calculation usable but visibly unrounded", () => {
