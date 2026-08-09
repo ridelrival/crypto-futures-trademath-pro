@@ -164,6 +164,51 @@ const stylesSource = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 if (!html.includes('<meta name="color-scheme" content="dark light" />')) {
   throw new Error("The document must advertise Dark and Light native control color schemes.");
 }
+for (const meta of [
+  '<meta name="mobile-web-app-capable" content="yes" />',
+  '<meta name="apple-mobile-web-app-capable" content="yes" />',
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
+]) {
+  if (!html.includes(meta)) throw new Error(`Missing mobile system-bar metadata: ${meta}`);
+}
+if (
+  !html.includes('localStorage.getItem("trademath-theme")') ||
+  !html.includes('document.documentElement.style.backgroundColor = color') ||
+  !html.includes('theme === "light" ? "default" : "black-translucent"')
+) {
+  throw new Error("The saved theme must be applied before the first mobile paint.");
+}
+if (
+  !appSource.includes("function iosStandaloneContext()") ||
+  !appSource.includes('matchMedia?.("(display-mode: fullscreen)")') ||
+  !appSource.includes("context.major === null || (context.major >= 18 && context.major <= 26)") ||
+  !appSource.includes('captureRefreshState("theme")') ||
+  !appSource.includes("window.location.replace(url.toString())")
+) {
+  throw new Error("iOS 18-26 standalone PWAs must preserve the plan and reload after theme changes.");
+}
+if (
+  !stylesSource.includes("--app-safe-top:") ||
+  !stylesSource.includes("--safe-area-inset-top") ||
+  !stylesSource.includes("env(safe-area-inset-top, 0px)") ||
+  !stylesSource.includes("calc(9px + var(--app-safe-top))")
+) {
+  throw new Error("Mobile headers must respect native and browser safe-area insets.");
+}
+if (
+  !stylesSource.includes("translateY(calc(-100% - var(--app-safe-top) - 16px))") ||
+  !stylesSource.includes("pointer-events: none") ||
+  !stylesSource.includes(".skip-link:focus")
+) {
+  throw new Error("The skip link must remain hidden above every mobile safe area until focused.");
+}
+if (
+  !stylesSource.includes("body::before") ||
+  !stylesSource.includes("height: var(--app-safe-top)") ||
+  !stylesSource.includes("background: var(--system-bar-bg)")
+) {
+  throw new Error("The mobile safe-area backdrop must follow theme changes at runtime.");
+}
 if (
   !stylesSource.includes("select option,") ||
   !stylesSource.includes("color-scheme: dark;") ||
@@ -174,11 +219,13 @@ if (
 if (
   !appSource.includes("function setupThemedSelects()") ||
   !appSource.includes("function openThemedSelect(select)") ||
+  !appSource.includes("function viewportMetrics()") ||
+  !appSource.includes("viewport.height * 0.72") ||
   !appSource.includes("select.hidden = true") ||
   !stylesSource.includes(".themed-select-dialog") ||
   !stylesSource.includes("select.native-select-control")
 ) {
-  throw new Error("Native mobile select popovers must be replaced by themed application dialogs.");
+  throw new Error("Themed select dialogs must remain centered and bounded on portrait viewports.");
 }
 if (
   !stylesSource.includes("#historyButton,") ||
@@ -199,10 +246,14 @@ if (
 }
 if (
   !stylesSource.includes("body.dialog-stack-open") ||
+  !stylesSource.includes("html.dialog-scroll-restoring") ||
   !stylesSource.includes(".modal.dialog-covered") ||
-  !stylesSource.includes("overscroll-behavior: contain")
+  !stylesSource.includes("overscroll-behavior: contain") ||
+  !appSource.includes("function restoreDialogScroll()") ||
+  !appSource.includes('behavior: "auto"') ||
+  !stylesSource.includes(".themed-select-dialog.is-closing")
 ) {
-  throw new Error("Dialog layers must prevent background scrolling while preserving active-dialog scrolling.");
+  throw new Error("Dialog layers must preserve page position and animate smoothly when dismissed.");
 }
 if (!stylesSource.includes(':root[data-theme="pitch-black"]') || !stylesSource.includes('--bg: #000000')) {
   throw new Error("Pitch Black must use a pure black application background.");
@@ -270,6 +321,14 @@ if (
   capacitorConfig.webDir !== "www"
 ) {
   throw new Error("Capacitor app identity or offline web directory is invalid.");
+}
+if (
+  capacitorConfig.plugins?.SystemBars?.insetsHandling !== "css" ||
+  capacitorConfig.plugins?.SystemBars?.style !== "DARK" ||
+  !appSource.includes("function syncSystemBars(theme)") ||
+  !appSource.includes('registerPlugin?.("SystemBars")')
+) {
+  throw new Error("Capacitor system bars must follow the active theme and safe areas.");
 }
 if (!appSource.includes("window.Capacitor?.isNativePlatform?.()")) {
   throw new Error("Native Android builds must not register the browser PWA installer.");
