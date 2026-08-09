@@ -41,9 +41,23 @@ for (const reference of [
 if (html.includes('type="number"')) {
   throw new Error("Numeric controls must use manually typed text inputs without spinner buttons.");
 }
-for (const id of ["balance", "riskValue", "leverage", "symbol", "entryPrice", "stopLoss", "tp1Price"]) {
+for (const id of [
+  "balance",
+  "riskValue",
+  "leverage",
+  "entryPrice",
+  "stopLoss",
+  "tp1Price",
+  "instrumentSymbol",
+]) {
   const emptyInput = new RegExp(`<input[^>]+id="${id}"[^>]+value=""`);
   if (!emptyInput.test(html)) throw new Error(`#${id} must start empty.`);
+}
+if (!/<input id="symbol" name="symbol" type="hidden" value="COIN"/.test(html)) {
+  throw new Error("The main calculator must use the hidden generic COIN identity.");
+}
+if (html.includes('data-i18n="symbol"')) {
+  throw new Error("The visible Symbol parameter must be removed.");
 }
 if (!/<option value="okx" selected>/.test(html)) {
   throw new Error("OKX must be the default exchange.");
@@ -51,17 +65,53 @@ if (!/<option value="okx" selected>/.test(html)) {
 for (const id of [
   "advancedToggle",
   "exchangeExecutionPanel",
+  "exitPlanPanel",
   "stopTriggerSource",
   "stopLimitPrice",
   "fundingEnabled",
   "specMode",
   "quantityMode",
   "contractQuantityValue",
+  "instrumentSymbol",
+  "resultsPanel",
+  "advancedResultsPanel",
+  "quoteCurrency",
+  "settingsButton",
+  "settingsDialog",
+  "settingsHistoryAction",
+  "settingsLanguageAction",
+  "settingsThemeAction",
+  "settingsRefreshAction",
+  "themedSelectDialog",
+  "themedSelectTitle",
+  "themedSelectList",
 ]) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Required feature element #${id} is missing.`);
 }
 if (!/<details id="exchangeExecutionPanel" class="panel exchange-panel" open>/.test(html)) {
   throw new Error("Exchange & Execution must be expanded by default for new users.");
+}
+if (!/<details id="exitPlanPanel" class="panel targets-panel" open>/.test(html)) {
+  throw new Error("Exit plan must be expanded by default for new users.");
+}
+if (html.includes('id="allocationTotal"')) {
+  throw new Error("The redundant total-allocation badge must be replaced by the Exit plan arrow.");
+}
+if (!/<section id="resultsPanel" class="results-panel" aria-labelledby="resultsHeading">/.test(html)) {
+  throw new Error("Results must be a permanently open core-results section.");
+}
+const resultsPanelMarkup = html.slice(
+  html.indexOf('id="resultsPanel"'),
+  html.indexOf('<details id="advancedResultsPanel" class="result-details"'),
+);
+if (resultsPanelMarkup.includes("summary-arrow") || /<summary\b/.test(resultsPanelMarkup)) {
+  throw new Error("Core Results must not expose expand/collapse controls.");
+}
+if ((html.match(/id="tp1Price"/g) || []).length !== 1) {
+  throw new Error("TP1 price must appear exactly once in Parameters.");
+}
+if (!/<input id="tp1Allocation" name="tp1Allocation" type="hidden" value="100"/.test(html)) {
+  throw new Error("TP1 allocation must be derived automatically from TP2 and TP3.");
 }
 if (!/<option value="maker" data-i18n="makerPostOnly" selected>/.test(html)) {
   throw new Error("Post-Only Limit must be the default entry execution.");
@@ -87,6 +137,87 @@ for (const key of ["isolatedOnly", "crossUnsupported", "advancedOffBody"]) {
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
 if (!appSource.includes('const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open"')) {
   throw new Error("Exchange panel state must persist between sessions.");
+}
+if (!appSource.includes('const EXIT_PLAN_PANEL_KEY = "trademath-exit-plan-panel-open"')) {
+  throw new Error("Exit plan state must persist between sessions.");
+}
+if (appSource.includes("CORE_RESULTS_PANEL_KEY") || appSource.includes("restoreResultsPanelState")) {
+  throw new Error("Core Results must remain permanently open rather than restoring a collapsed state.");
+}
+if (
+  !appSource.includes(
+    'const ADVANCED_RESULTS_PANEL_KEY = "trademath-advanced-results-panel-open"',
+  ) ||
+  !appSource.includes("restoreAdvancedResultsPanelState") ||
+  !appSource.includes("persistAdvancedResultsPanelState") ||
+  !appSource.includes('window.addEventListener("pagehide"')
+) {
+  throw new Error("Advanced Results panel state must persist between sessions.");
+}
+if (!html.includes('data-theme-option="pitch-black"')) {
+  throw new Error("Pitch Black must be available in the theme selector.");
+}
+if (!appSource.includes('["dark", "light", "pitch-black"]')) {
+  throw new Error("Theme logic must support Dark, Light, and Pitch Black.");
+}
+const stylesSource = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+if (!html.includes('<meta name="color-scheme" content="dark light" />')) {
+  throw new Error("The document must advertise Dark and Light native control color schemes.");
+}
+if (
+  !stylesSource.includes("select option,") ||
+  !stylesSource.includes("color-scheme: dark;") ||
+  !stylesSource.includes(':root[data-theme="light"] select')
+) {
+  throw new Error("Native select menus must follow the active application theme.");
+}
+if (
+  !appSource.includes("function setupThemedSelects()") ||
+  !appSource.includes("function openThemedSelect(select)") ||
+  !appSource.includes("select.hidden = true") ||
+  !stylesSource.includes(".themed-select-dialog") ||
+  !stylesSource.includes("select.native-select-control")
+) {
+  throw new Error("Native mobile select popovers must be replaced by themed application dialogs.");
+}
+if (
+  !stylesSource.includes("#historyButton,") ||
+  !stylesSource.includes(".settings-button {\n    display: inline-flex;")
+) {
+  throw new Error("Mobile header actions must be grouped inside the Settings button.");
+}
+if (
+  !appSource.includes('const SETTINGS_CHILD_DIALOG_IDS = ["historyDialog", "languageDialog", "themeDialog"]') ||
+  !appSource.includes("function setupInputModality()") ||
+  !appSource.includes("function clearPointerFocus()") ||
+  !appSource.includes("function lockDialogScroll()") ||
+  !appSource.includes("function syncDialogLayers()") ||
+  !appSource.includes("function closeSettingsStack()") ||
+  !appSource.includes('dialog.addEventListener("close", syncDialogLayers)')
+) {
+  throw new Error("Settings must retain layered close, touch-focus, and scroll-lock behavior.");
+}
+if (
+  !stylesSource.includes("body.dialog-stack-open") ||
+  !stylesSource.includes(".modal.dialog-covered") ||
+  !stylesSource.includes("overscroll-behavior: contain")
+) {
+  throw new Error("Dialog layers must prevent background scrolling while preserving active-dialog scrolling.");
+}
+if (!stylesSource.includes(':root[data-theme="pitch-black"]') || !stylesSource.includes('--bg: #000000')) {
+  throw new Error("Pitch Black must use a pure black application background.");
+}
+if (
+  !stylesSource.includes(
+    '@media (orientation: landscape) and (min-width: 761px) and (max-width: 1366px)',
+  ) ||
+  !stylesSource.includes('.input-parameters-stack {\n    grid-column: 1;') ||
+  !stylesSource.includes('.input-primary-stack {\n    grid-column: 2;')
+) {
+  throw new Error("Tablet landscape must place Parameters left and the primary panels right.");
+}
+if (!appSource.includes('const baseCoin = "COIN"')) {
+  throw new Error("Rendered quantity must use the generic COIN label.");
 }
 const staticIds = [...appSource.matchAll(/\$\("([^"]+)"\)/g)].map((match) => match[1]);
 for (const id of new Set(staticIds)) {
