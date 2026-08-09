@@ -83,3 +83,68 @@ test("parses Gate and MEXC contract multipliers and maintenance rates", () => {
   assert.equal(mexc.priceTick, 0.5);
   assert.equal(mexc.maintenanceMargin, 0.4);
 });
+
+test("parses Aster Binance-style linear quantity filters", () => {
+  const specs = parsers.aster(
+    { exchangeId: "aster", base: "ETH", quote: "USDT" },
+    {
+      symbols: [
+        {
+          symbol: "ETHUSDT",
+          status: "TRADING",
+          filters: [
+            { filterType: "PRICE_FILTER", tickSize: "0.01" },
+            { filterType: "LOT_SIZE", stepSize: "0.001", minQty: "0.001" },
+            { filterType: "MIN_NOTIONAL", notional: "5" },
+          ],
+        },
+      ],
+    },
+  );
+  assert.equal(specs.quantityMode, "base");
+  assert.equal(specs.quantityStep, 0.001);
+  assert.equal(specs.priceTick, 0.01);
+  assert.equal(specs.minimumNotional, 5);
+});
+
+test("parses Hyperliquid size precision and leverage metadata", () => {
+  const specs = parsers.hyperliquid(
+    { exchangeId: "hyperliquid", base: "BTC", quote: "USDC" },
+    {
+      universe: [{ name: "BTC", szDecimals: 5, maxLeverage: 50 }],
+    },
+  );
+  assert.equal(specs.quantityMode, "base");
+  assert.equal(specs.quantityStep, 0.00001);
+  assert.equal(specs.priceTick, 0.1);
+  assert.equal(specs.maximumExchangeLeverage, 50);
+  assert.equal(specs.maintenanceMargin, 1);
+});
+
+test("parses Lighter market precision, minimums, and maximum leverage", () => {
+  const specs = parsers.lighter(
+    { exchangeId: "lighter", base: "ETH", quote: "USDC" },
+    {
+      order_books: [
+        {
+          symbol: "ETH",
+          market_type: "perp",
+          status: "active",
+          supported_size_decimals: 4,
+          supported_price_decimals: 2,
+          min_base_amount: "0.001",
+          min_quote_amount: "10",
+          min_initial_margin_fraction: 200,
+          maintenance_margin_fraction: 100,
+        },
+      ],
+    },
+  );
+  assert.equal(specs.quantityMode, "base");
+  assert.equal(specs.quantityStep, 0.0001);
+  assert.equal(specs.priceTick, 0.01);
+  assert.equal(specs.minimumQuantity, 0.001);
+  assert.equal(specs.minimumNotional, 10);
+  assert.equal(specs.maximumExchangeLeverage, 50);
+  assert.equal(specs.maintenanceMargin, 1);
+});
