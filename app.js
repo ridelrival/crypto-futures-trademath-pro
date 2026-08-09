@@ -97,7 +97,9 @@
   let deferredInstallPrompt = null;
   let toastTimer = null;
   let dialogScrollY = 0;
+  let dialogScrollRestoreFrame = 0;
   let activeSelectControl = null;
+  let themedSelectCloseTimer = null;
 
   const SETTINGS_CHILD_DIALOG_IDS = ["historyDialog", "languageDialog", "themeDialog"];
 
@@ -407,7 +409,7 @@
   function reloadIosPwaForTheme(theme) {
     captureRefreshState("theme");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "56");
+    url.searchParams.set("v", "57");
     url.searchParams.set("theme", theme);
     url.searchParams.set("theme-reload", Date.now().toString(36));
     window.location.replace(url.toString());
@@ -1343,35 +1345,66 @@
     return select.closest(".themed-select-shell");
   }
 
+  function viewportMetrics() {
+    const viewport = window.visualViewport;
+    return {
+      width: viewport?.width || window.innerWidth,
+      height: viewport?.height || window.innerHeight,
+      offsetLeft: viewport?.offsetLeft || 0,
+      offsetTop: viewport?.offsetTop || 0,
+    };
+  }
+
   function positionThemedSelect(select) {
     const dialog = $("themedSelectDialog");
     const host = themedSelectHost(select);
     const trigger = host?.querySelector(".themed-select-trigger");
     if (!trigger) return;
 
+    const viewport = viewportMetrics();
     const rect = trigger.getBoundingClientRect();
-    const margin = 8;
+    const portrait = viewport.height >= viewport.width;
+    const margin = portrait ? 16 : 8;
     const inline = host.classList.contains("is-inline");
     const width = Math.min(
       Math.max(rect.width, inline ? 132 : 280),
-      window.innerWidth - margin * 2,
+      viewport.width - margin * 2,
     );
-    const estimatedHeight = Math.min(
-      select.options.length * 56 + 12,
-      window.innerHeight - margin * 2,
-    );
-    const left = Math.max(
-      margin,
-      Math.min(inline ? rect.right - width : rect.left, window.innerWidth - width - margin),
-    );
-    let top = rect.bottom + 6;
-    if (top + estimatedHeight > window.innerHeight - margin) {
-      top = rect.top - estimatedHeight - 6;
+    const contentHeight = select.options.length * 56 + 12;
+    const maxHeight = portrait
+      ? Math.min(viewport.height - margin * 2, viewport.height * 0.72, 620)
+      : viewport.height - margin * 2;
+    const estimatedHeight = Math.min(contentHeight, maxHeight);
+    let left;
+    let top;
+
+    if (portrait) {
+      left = viewport.offsetLeft + (viewport.width - width) / 2;
+      top = viewport.offsetTop + (viewport.height - estimatedHeight) / 2;
+    } else {
+      left = Math.max(
+        viewport.offsetLeft + margin,
+        Math.min(
+          inline ? rect.right - width : rect.left,
+          viewport.offsetLeft + viewport.width - width - margin,
+        ),
+      );
+      top = rect.bottom + 6;
+      if (top + estimatedHeight > viewport.offsetTop + viewport.height - margin) {
+        top = rect.top - estimatedHeight - 6;
+      }
+      top = Math.max(
+        viewport.offsetTop + margin,
+        Math.min(top, viewport.offsetTop + viewport.height - estimatedHeight - margin),
+      );
     }
-    top = Math.max(margin, Math.min(top, window.innerHeight - estimatedHeight - margin));
 
     dialog.style.width = `${width}px`;
-    dialog.style.maxHeight = `${window.innerHeight - margin * 2}px`;
+    dialog.style.maxHeight = `${maxHeight}px`;
+    dialog.style.setProperty(
+      "--themed-select-list-max-height",
+      `${Math.max(120, maxHeight - 12)}px`,
+    );
     dialog.style.left = `${left}px`;
     dialog.style.top = `${top}px`;
   }
@@ -1395,6 +1428,8 @@
   }
 
   function closeActiveSelectDialog() {
+    window.clearTimeout(themedSelectCloseTimer);
+    themedSelectCloseTimer = null;
     if (activeSelectControl) {
       themedSelectHost(activeSelectControl)
         ?.querySelector(".themed-select-trigger")
@@ -1405,6 +1440,8 @@
     dialog.style.removeProperty("max-height");
     dialog.style.removeProperty("left");
     dialog.style.removeProperty("top");
+    dialog.style.removeProperty("--themed-select-list-max-height");
+    dialog.classList.remove("is-closing");
     activeSelectControl = null;
   }
 
@@ -1433,7 +1470,7 @@
           syncThemedSelect(select);
           select.dispatchEvent(new Event("change", { bubbles: true }));
         }
-        window.setTimeout(() => closeDialog("themedSelectDialog"), 110);
+        window.setTimeout(() => closeDialog("themedSelectDialog"), 80);
       });
       list.append(button);
     });
@@ -1441,6 +1478,9 @@
 
   function openThemedSelect(select) {
     if (select.disabled) return;
+    window.clearTimeout(themedSelectCloseTimer);
+    themedSelectCloseTimer = null;
+    $("themedSelectDialog").classList.remove("is-closing");
     activeSelectControl = select;
     $("themedSelectTitle").textContent = selectFieldLabel(select);
     renderThemedSelectOptions(select);
@@ -1563,6 +1603,22 @@
     document.body.style.top = `-${dialogScrollY}px`;
   }
 
+  function restoreDialogScroll() {
+    const root = document.documentElement;
+    window.cancelAnimationFrame(dialogScrollRestoreFrame);
+    root.classList.add("dialog-scroll-restoring");
+    root.classList.remove("dialog-stack-open");
+    document.body.classList.remove("dialog-stack-open");
+    document.body.style.top = "";
+    window.scrollTo({ left: 0, top: dialogScrollY, behavior: "auto" });
+    dialogScrollRestoreFrame = window.requestAnimationFrame(() => {
+      window.scrollTo({ left: 0, top: dialogScrollY, behavior: "auto" });
+      dialogScrollRestoreFrame = window.requestAnimationFrame(() => {
+        root.classList.remove("dialog-scroll-restoring");
+      });
+    });
+  }
+
   function syncDialogLayers() {
     const dialogs = Array.from(document.querySelectorAll("dialog"));
     const openDialogs = dialogs.filter((dialog) => dialog.open);
@@ -1579,10 +1635,7 @@
     }
 
     if (!openDialogs.length && pageLocked) {
-      document.documentElement.classList.remove("dialog-stack-open");
-      document.body.classList.remove("dialog-stack-open");
-      document.body.style.top = "";
-      window.scrollTo(0, dialogScrollY);
+      restoreDialogScroll();
     }
   }
 
@@ -1603,6 +1656,20 @@
 
   function closeDialog(dialogId) {
     const dialog = $(dialogId);
+    if (
+      dialogId === "themedSelectDialog" &&
+      dialog.open &&
+      !dialog.classList.contains("is-closing")
+    ) {
+      dialog.classList.add("is-closing");
+      themedSelectCloseTimer = window.setTimeout(() => {
+        themedSelectCloseTimer = null;
+        if (dialog.open) dialog.close();
+        syncDialogLayers();
+        clearPointerFocus();
+      }, 210);
+      return;
+    }
     if (dialog.open) dialog.close();
     syncDialogLayers();
     clearPointerFocus();
@@ -1668,6 +1735,11 @@
     });
     document.querySelectorAll("dialog").forEach((dialog) => {
       dialog.addEventListener("close", syncDialogLayers);
+      dialog.addEventListener("cancel", (event) => {
+        if (dialog.id !== "themedSelectDialog") return;
+        event.preventDefault();
+        closeDialog(dialog.id);
+      });
       dialog.addEventListener("click", (event) => {
         if (event.target !== dialog) return;
         if (dialog.id === "settingsDialog" || $("settingsDialog").open) {

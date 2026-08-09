@@ -1606,6 +1606,10 @@ html.dialog-stack-open {
   overscroll-behavior: none;
 }
 
+html.dialog-scroll-restoring {
+  scroll-behavior: auto !important;
+}
+
 body.dialog-stack-open {
   position: fixed;
   right: 0;
@@ -1943,7 +1947,13 @@ body.dialog-stack-open {
     inset 0 1px 0 color-mix(in srgb, var(--text) 13%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--text) 4%, transparent);
   backdrop-filter: blur(28px) saturate(145%);
-  animation: themed-select-popover-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: themed-select-popover-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.themed-select-dialog.is-closing {
+  pointer-events: none;
+  animation: themed-select-popover-exit 210ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .themed-select-dialog::backdrop {
@@ -1967,7 +1977,7 @@ body.dialog-stack-open {
 
 .themed-select-list {
   display: grid;
-  max-height: calc(100vh - 28px);
+  max-height: var(--themed-select-list-max-height, calc(100vh - 28px));
   gap: 0;
   padding: 0;
   overflow: hidden auto;
@@ -1995,9 +2005,9 @@ body.dialog-stack-open {
   letter-spacing: -0.015em;
   text-align: left;
   transition:
-    transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background 180ms ease,
-    color 180ms ease;
+    transform 190ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 220ms ease,
+    color 220ms ease;
   will-change: transform, background;
 }
 
@@ -2049,11 +2059,22 @@ body.dialog-stack-open {
 @keyframes themed-select-popover-enter {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.97);
+    transform: translateY(8px) scale(0.965);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes themed-select-popover-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(5px) scale(0.98);
   }
 }
 
