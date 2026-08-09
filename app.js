@@ -378,34 +378,36 @@
     return snapshot.reason || "refresh";
   }
 
-  function iosStandaloneMajorVersion() {
+  function iosStandaloneContext() {
     if (window.Capacitor?.isNativePlatform?.()) return null;
-    const standalone =
-      window.navigator.standalone === true ||
-      window.matchMedia?.("(display-mode: standalone)")?.matches === true;
-    if (!standalone) return null;
-
     const userAgent = window.navigator.userAgent || "";
     const isTouchMac =
       window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
     const isIosDevice = /iPhone|iPad|iPod/i.test(userAgent) || isTouchMac;
     if (!isIosDevice) return null;
 
+    const installed =
+      window.navigator.standalone === true ||
+      window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
+      window.matchMedia?.("(display-mode: fullscreen)")?.matches === true;
+    if (!installed) return null;
+
     const osMatch = userAgent.match(/(?:CPU (?:iPhone )?OS|iPhone OS) (\d+)[._]/i);
     const safariMatch = userAgent.match(/Version\/(\d+)(?:\.|\s)/i);
     const major = Number(osMatch?.[1] || safariMatch?.[1]);
-    return Number.isFinite(major) ? major : null;
+    return { major: Number.isFinite(major) ? major : null };
   }
 
   function shouldReloadIosPwaForTheme() {
-    const major = iosStandaloneMajorVersion();
-    return major !== null && major >= 18 && major <= 26;
+    const context = iosStandaloneContext();
+    if (!context) return false;
+    return context.major === null || (context.major >= 18 && context.major <= 26);
   }
 
   function reloadIosPwaForTheme(theme) {
     captureRefreshState("theme");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "54");
+    url.searchParams.set("v", "55");
     url.searchParams.set("theme", theme);
     url.searchParams.set("theme-reload", Date.now().toString(36));
     window.location.replace(url.toString());
