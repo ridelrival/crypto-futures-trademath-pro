@@ -407,7 +407,7 @@
   function reloadIosPwaForTheme(theme) {
     captureRefreshState("theme");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "55");
+    url.searchParams.set("v", "56");
     url.searchParams.set("theme", theme);
     url.searchParams.set("theme-reload", Date.now().toString(36));
     window.location.replace(url.toString());

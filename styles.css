@@ -216,16 +216,23 @@ a {
   left: calc(8px + var(--app-safe-left));
   z-index: 1000;
   padding: 10px 14px;
-  transform: translateY(-150%);
+  transform: translateY(calc(-100% - var(--app-safe-top) - 16px));
+  opacity: 0;
+  pointer-events: none;
   border-radius: 8px;
   background: var(--green);
   color: #04100d;
   font-weight: 800;
   text-decoration: none;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
 }
 
 .skip-link:focus {
   transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .app-header {
