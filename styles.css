@@ -2168,6 +2168,29 @@ body.dialog-stack-open {
   }
 }
 
+/* Tablet landscape mirrors the desktop workspace: the complete input plan
+   stacks in the left column while trade analysis remains in the right.
+   The height guard prevents landscape phones from entering this layout. */
+@media (orientation: landscape) and (min-width: 900px) and (min-height: 600px) and (max-width: 1366px) {
+  .workspace {
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+    gap: clamp(16px, 2vw, 28px);
+    align-items: start;
+  }
+
+  .input-column {
+    grid-template-columns: 1fr;
+  }
+
+  .input-layout-stack {
+    display: contents;
+  }
+
+  .results-column {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .app-header {
     align-items: center;
