@@ -1295,6 +1295,39 @@
     return select.closest(".themed-select-shell");
   }
 
+  function positionThemedSelect(select) {
+    const dialog = $("themedSelectDialog");
+    const host = themedSelectHost(select);
+    const trigger = host?.querySelector(".themed-select-trigger");
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const margin = 8;
+    const inline = host.classList.contains("is-inline");
+    const width = Math.min(
+      Math.max(rect.width, inline ? 132 : 280),
+      window.innerWidth - margin * 2,
+    );
+    const estimatedHeight = Math.min(
+      select.options.length * 56 + 12,
+      window.innerHeight - margin * 2,
+    );
+    const left = Math.max(
+      margin,
+      Math.min(inline ? rect.right - width : rect.left, window.innerWidth - width - margin),
+    );
+    let top = rect.bottom + 6;
+    if (top + estimatedHeight > window.innerHeight - margin) {
+      top = rect.top - estimatedHeight - 6;
+    }
+    top = Math.max(margin, Math.min(top, window.innerHeight - estimatedHeight - margin));
+
+    dialog.style.width = `${width}px`;
+    dialog.style.maxHeight = `${window.innerHeight - margin * 2}px`;
+    dialog.style.left = `${left}px`;
+    dialog.style.top = `${top}px`;
+  }
+
   function syncThemedSelect(select) {
     const host = themedSelectHost(select);
     if (!host) return;
@@ -1319,16 +1352,22 @@
         ?.querySelector(".themed-select-trigger")
         ?.setAttribute("aria-expanded", "false");
     }
+    const dialog = $("themedSelectDialog");
+    dialog.style.removeProperty("width");
+    dialog.style.removeProperty("max-height");
+    dialog.style.removeProperty("left");
+    dialog.style.removeProperty("top");
     activeSelectControl = null;
   }
 
   function renderThemedSelectOptions(select) {
     const list = $("themedSelectList");
     list.replaceChildren();
-    Array.from(select.options).forEach((option) => {
+    Array.from(select.options).forEach((option, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "themed-select-option";
+      button.style.setProperty("--option-index", index);
       button.setAttribute("role", "option");
       button.setAttribute("aria-label", option.textContent);
       button.setAttribute("aria-selected", String(option.value === select.value));
@@ -1336,12 +1375,17 @@
       button.textContent = option.textContent;
       if (option.value === select.value) button.classList.add("active");
       button.addEventListener("click", () => {
+        const previousActive = list.querySelector(".active");
+        previousActive?.classList.remove("active");
+        previousActive?.setAttribute("aria-selected", "false");
+        button.classList.add("active", "is-choosing");
+        button.setAttribute("aria-selected", "true");
         if (select.value !== option.value) {
           select.value = option.value;
           syncThemedSelect(select);
           select.dispatchEvent(new Event("change", { bubbles: true }));
         }
-        closeDialog("themedSelectDialog");
+        window.setTimeout(() => closeDialog("themedSelectDialog"), 110);
       });
       list.append(button);
     });
@@ -1352,6 +1396,7 @@
     activeSelectControl = select;
     $("themedSelectTitle").textContent = selectFieldLabel(select);
     renderThemedSelectOptions(select);
+    positionThemedSelect(select);
     themedSelectHost(select)
       ?.querySelector(".themed-select-trigger")
       ?.setAttribute("aria-expanded", "true");
@@ -1371,6 +1416,7 @@
     if (select.classList.contains("compact-select")) host.classList.add("is-compact");
     if (select.classList.contains("quote-select")) host.classList.add("is-quote");
     if (select.classList.contains("context-select")) host.classList.add("is-context");
+    if (select.id === "riskUnit") host.classList.add("is-risk-unit");
 
     const trigger = document.createElement("button");
     trigger.type = "button";
@@ -1414,6 +1460,11 @@
       true,
     );
     $("themedSelectDialog").addEventListener("close", closeActiveSelectDialog);
+    window.addEventListener("resize", () => {
+      if (activeSelectControl && $("themedSelectDialog").open) {
+        positionThemedSelect(activeSelectControl);
+      }
+    });
   }
 
   async function fetchFunding() {
