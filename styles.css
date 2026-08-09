@@ -137,6 +137,7 @@ html {
   overflow-x: hidden;
   background: var(--system-bar-bg);
   scroll-behavior: smooth;
+  transition: background-color 180ms ease;
 }
 
 body {
@@ -150,6 +151,26 @@ body {
   color: var(--text);
   font-size: 15px;
   line-height: 1.5;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+/*
+ * iOS reads apple-mobile-web-app-status-bar-style when the PWA launches and
+ * does not reliably re-read it at runtime. Keeping the app translucent and
+ * painting the safe-area ourselves makes its background follow the selected
+ * theme immediately without requiring a close/reopen cycle.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  z-index: 51;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--app-safe-top);
+  pointer-events: none;
+  background: var(--system-bar-bg);
+  transition: background-color 180ms ease;
 }
 
 button,
@@ -225,6 +246,10 @@ a {
   background: var(--header-bg);
   box-shadow: 0 calc(-1 * var(--app-safe-top)) 0 var(--system-bar-bg);
   backdrop-filter: blur(16px);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .brand {
