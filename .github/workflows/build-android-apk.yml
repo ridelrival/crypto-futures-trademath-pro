@@ -10,6 +10,8 @@ on:
       - "assets/**"
       - "scripts/prepare-mobile.mjs"
       - "scripts/configure-android.mjs"
+      - "scripts/check-project.cjs"
+      - "tests/**"
       - "*.html"
       - "*.css"
       - "*.js"
