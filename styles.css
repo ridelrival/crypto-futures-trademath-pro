@@ -35,6 +35,11 @@
   --modal-bg: #101315;
   --search-bg: #0d0f11;
   --toast-bg: #20252a;
+  --system-bar-bg: #0c0e0f;
+  --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --radius: 16px;
   --radius-sm: 11px;
   font-family:
@@ -79,6 +84,7 @@
   --modal-bg: #ffffff;
   --search-bg: #f7f9fa;
   --toast-bg: #243139;
+  --system-bar-bg: #ffffff;
 }
 
 :root[data-theme="pitch-black"] {
@@ -118,6 +124,7 @@
   --modal-bg: #050607;
   --search-bg: #020304;
   --toast-bg: #111417;
+  --system-bar-bg: #000000;
 }
 
 * {
@@ -128,7 +135,7 @@ html {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  background: var(--bg);
+  background: var(--system-bar-bg);
   scroll-behavior: smooth;
 }
 
@@ -184,8 +191,8 @@ a {
 
 .skip-link {
   position: fixed;
-  top: 8px;
-  left: 8px;
+  top: calc(8px + var(--app-safe-top));
+  left: calc(8px + var(--app-safe-left));
   z-index: 1000;
   padding: 10px 14px;
   transform: translateY(-150%);
@@ -209,9 +216,14 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 10px clamp(16px, 3vw, 44px);
+  padding:
+    calc(10px + var(--app-safe-top))
+    calc(clamp(16px, 3vw, 44px) + var(--app-safe-right))
+    10px
+    calc(clamp(16px, 3vw, 44px) + var(--app-safe-left));
   border-bottom: 1px solid var(--header-border);
   background: var(--header-bg);
+  box-shadow: 0 calc(-1 * var(--app-safe-top)) 0 var(--system-bar-bg);
   backdrop-filter: blur(16px);
 }
 
@@ -355,7 +367,11 @@ a {
 .app-shell {
   width: min(1580px, 100%);
   margin: 0 auto;
-  padding: clamp(18px, 2.6vw, 34px) clamp(12px, 2.2vw, 32px) 56px;
+  padding:
+    clamp(18px, 2.6vw, 34px)
+    calc(clamp(12px, 2.2vw, 32px) + var(--app-safe-right))
+    calc(56px + var(--app-safe-bottom))
+    calc(clamp(12px, 2.2vw, 32px) + var(--app-safe-left));
 }
 
 .attention-banner {
@@ -2194,7 +2210,11 @@ body.dialog-stack-open {
 @media (max-width: 760px) {
   .app-header {
     align-items: center;
-    padding: 9px 12px;
+    padding:
+      calc(9px + var(--app-safe-top))
+      calc(12px + var(--app-safe-right))
+      9px
+      calc(12px + var(--app-safe-left));
   }
 
   .brand > span {

@@ -240,6 +240,26 @@
     input.title = I18n.t("interpretedNumber", { value: input.value });
   }
 
+  function syncSystemBars(theme) {
+    const color =
+      theme === "light" ? "#ffffff" : theme === "pitch-black" ? "#000000" : "#0c0e0f";
+    document.documentElement.style.backgroundColor = color;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", color);
+    document
+      .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+      ?.setAttribute("content", theme === "light" ? "default" : "black-translucent");
+
+    if (!window.Capacitor?.isNativePlatform?.()) return;
+    const systemBars =
+      window.Capacitor?.Plugins?.SystemBars ||
+      window.Capacitor?.registerPlugin?.("SystemBars");
+    systemBars
+      ?.setStyle?.({ style: theme === "light" ? "LIGHT" : "DARK" })
+      .catch(() => {});
+  }
+
   function applyTheme(nextTheme, persist = true) {
     const supportedThemes = ["dark", "light", "pitch-black"];
     const theme = supportedThemes.includes(nextTheme) ? nextTheme : "dark";
@@ -254,15 +274,10 @@
       "pitch-black": "●",
     }[theme];
     document.documentElement.dataset.theme = theme;
+    syncSystemBars(theme);
     $("themeIcon").textContent = themeIcon;
     $("activeTheme").textContent = I18n.t(themeKey);
     if ($("settingsThemeValue")) $("settingsThemeValue").textContent = I18n.t(themeKey);
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute(
-        "content",
-        theme === "light" ? "#ffffff" : theme === "pitch-black" ? "#000000" : "#0c0e0f",
-      );
     document
       .querySelectorAll("[data-theme-option]")
       .forEach((button) => {
