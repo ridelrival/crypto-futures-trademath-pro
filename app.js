@@ -409,7 +409,7 @@
   function reloadIosPwaForTheme(theme) {
     captureRefreshState("theme");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "57");
+    url.searchParams.set("v", "58");
     url.searchParams.set("theme", theme);
     url.searchParams.set("theme-reload", Date.now().toString(36));
     window.location.replace(url.toString());
@@ -1366,8 +1366,9 @@
     const portrait = viewport.height >= viewport.width;
     const margin = portrait ? 16 : 8;
     const inline = host.classList.contains("is-inline");
+    const riskUnit = host.classList.contains("is-risk-unit");
     const width = Math.min(
-      Math.max(rect.width, inline ? 132 : 280),
+      Math.max(rect.width, riskUnit ? 104 : inline ? 132 : 280),
       viewport.width - margin * 2,
     );
     const contentHeight = select.options.length * 56 + 12;
@@ -1378,7 +1379,7 @@
     let left;
     let top;
 
-    if (portrait) {
+    if (portrait && !riskUnit) {
       left = viewport.offsetLeft + (viewport.width - width) / 2;
       top = viewport.offsetTop + (viewport.height - estimatedHeight) / 2;
     } else {
@@ -1470,7 +1471,7 @@
           syncThemedSelect(select);
           select.dispatchEvent(new Event("change", { bubbles: true }));
         }
-        window.setTimeout(() => closeDialog("themedSelectDialog"), 80);
+        closeDialog("themedSelectDialog");
       });
       list.append(button);
     });
@@ -1656,18 +1657,15 @@
 
   function closeDialog(dialogId) {
     const dialog = $(dialogId);
-    if (
-      dialogId === "themedSelectDialog" &&
-      dialog.open &&
-      !dialog.classList.contains("is-closing")
-    ) {
+    if (dialogId === "themedSelectDialog") {
+      if (!dialog.open || dialog.classList.contains("is-closing")) return;
       dialog.classList.add("is-closing");
       themedSelectCloseTimer = window.setTimeout(() => {
         themedSelectCloseTimer = null;
         if (dialog.open) dialog.close();
         syncDialogLayers();
         clearPointerFocus();
-      }, 210);
+      }, 125);
       return;
     }
     if (dialog.open) dialog.close();
@@ -1740,8 +1738,15 @@
         event.preventDefault();
         closeDialog(dialog.id);
       });
+      dialog.addEventListener("pointerdown", (event) => {
+        if (dialog.id !== "themedSelectDialog" || event.target !== dialog) return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeDialog(dialog.id);
+      });
       dialog.addEventListener("click", (event) => {
         if (event.target !== dialog) return;
+        if (dialog.id === "themedSelectDialog") return;
         if (dialog.id === "settingsDialog" || $("settingsDialog").open) {
           closeSettingsStack();
           return;

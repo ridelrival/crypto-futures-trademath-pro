@@ -173,6 +173,22 @@ body::before {
   transition: background-color 180ms ease;
 }
 
+/* Keep the iOS/Android bottom safe-area visually continuous with the page.
+   This prevents the browser canvas from showing as a solid light strip while
+   a modal list has the document scroll-locked. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 51;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--app-safe-bottom);
+  pointer-events: none;
+  background: var(--bg);
+  transition: background-color 180ms ease;
+}
+
 button,
 input,
 select {
@@ -1947,13 +1963,13 @@ body.dialog-stack-open {
     inset 0 1px 0 color-mix(in srgb, var(--text) 13%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--text) 4%, transparent);
   backdrop-filter: blur(28px) saturate(145%);
-  animation: themed-select-popover-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: themed-select-popover-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 .themed-select-dialog.is-closing {
   pointer-events: none;
-  animation: themed-select-popover-exit 210ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: themed-select-popover-exit 125ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .themed-select-dialog::backdrop {
@@ -2005,9 +2021,9 @@ body.dialog-stack-open {
   letter-spacing: -0.015em;
   text-align: left;
   transition:
-    transform 190ms cubic-bezier(0.16, 1, 0.3, 1),
-    background 220ms ease,
-    color 220ms ease;
+    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 140ms ease,
+    color 140ms ease;
   will-change: transform, background;
 }
 
