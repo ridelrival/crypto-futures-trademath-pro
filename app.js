@@ -308,7 +308,7 @@
     button.title = label;
   }
 
-  function captureRefreshState() {
+  function captureRefreshState(reason = "refresh") {
     const controls = {};
     Array.from(form.elements).forEach((control) => {
       if (!control.id || ["button", "submit", "file"].includes(control.type)) return;
@@ -320,6 +320,7 @@
     sessionStorage.setItem(
       REFRESH_STATE_KEY,
       JSON.stringify({
+        reason,
         controls,
         scrollX: window.scrollX,
         scrollY: window.scrollY,
@@ -374,7 +375,40 @@
     window.requestAnimationFrame(() => {
       window.scrollTo(Number(snapshot.scrollX) || 0, Number(snapshot.scrollY) || 0);
     });
-    return true;
+    return snapshot.reason || "refresh";
+  }
+
+  function iosStandaloneMajorVersion() {
+    if (window.Capacitor?.isNativePlatform?.()) return null;
+    const standalone =
+      window.navigator.standalone === true ||
+      window.matchMedia?.("(display-mode: standalone)")?.matches === true;
+    if (!standalone) return null;
+
+    const userAgent = window.navigator.userAgent || "";
+    const isTouchMac =
+      window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
+    const isIosDevice = /iPhone|iPad|iPod/i.test(userAgent) || isTouchMac;
+    if (!isIosDevice) return null;
+
+    const osMatch = userAgent.match(/(?:CPU (?:iPhone )?OS|iPhone OS) (\d+)[._]/i);
+    const safariMatch = userAgent.match(/Version\/(\d+)(?:\.|\s)/i);
+    const major = Number(osMatch?.[1] || safariMatch?.[1]);
+    return Number.isFinite(major) ? major : null;
+  }
+
+  function shouldReloadIosPwaForTheme() {
+    const major = iosStandaloneMajorVersion();
+    return major !== null && major >= 18 && major <= 26;
+  }
+
+  function reloadIosPwaForTheme(theme) {
+    captureRefreshState("theme");
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", "54");
+    url.searchParams.set("theme", theme);
+    url.searchParams.set("theme-reload", Date.now().toString(36));
+    window.location.replace(url.toString());
   }
 
   async function refreshApplicationData() {
@@ -1618,8 +1652,13 @@
     });
     document.querySelectorAll("[data-theme-option]").forEach((button) => {
       button.addEventListener("click", () => {
-        applyTheme(button.dataset.themeOption);
+        const nextTheme = button.dataset.themeOption;
+        const previousTheme = document.documentElement.dataset.theme || "dark";
+        applyTheme(nextTheme);
         closeDialog("themeDialog");
+        if (nextTheme !== previousTheme && shouldReloadIosPwaForTheme()) {
+          window.requestAnimationFrame(() => reloadIosPwaForTheme(nextTheme));
+        }
       });
     });
     document.querySelectorAll("[data-close-dialog]").forEach((button) => {
@@ -1830,11 +1869,11 @@
     localStorage.removeItem(INSTRUMENT_KEY);
     syncAdvancedControls();
     applyExchange(true);
-    const restoredAfterRefresh = restoreRefreshState();
+    const restoredStateReason = restoreRefreshState();
     renderLanguages();
     renderHistory();
     calculateAndRender();
-    if (restoredAfterRefresh) showToast(I18n.t("refreshComplete"));
+    if (restoredStateReason === "refresh") showToast(I18n.t("refreshComplete"));
   }
 
   init();
