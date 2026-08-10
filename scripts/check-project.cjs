@@ -179,13 +179,13 @@ if (
   throw new Error("The saved theme must be applied before the first mobile paint.");
 }
 if (
-  !appSource.includes("function iosStandaloneContext()") ||
-  !appSource.includes('matchMedia?.("(display-mode: fullscreen)")') ||
-  !appSource.includes("context.major === null || (context.major >= 18 && context.major <= 26)") ||
-  !appSource.includes('captureRefreshState("theme")') ||
-  !appSource.includes("window.location.replace(url.toString())")
+  appSource.includes("function reloadIosPwaForTheme(") ||
+  appSource.includes("shouldReloadIosPwaForTheme()") ||
+  appSource.includes('captureRefreshState("theme")') ||
+  !appSource.includes("function syncSystemBars(theme)") ||
+  !appSource.includes('theme === "light" ? "#f2f5f7"')
 ) {
-  throw new Error("iOS 18-26 standalone PWAs must preserve the plan and reload after theme changes.");
+  throw new Error("Theme changes must update system colors immediately without reloading the PWA.");
 }
 if (
   !stylesSource.includes("--app-safe-top:") ||
@@ -254,6 +254,16 @@ if (
   !stylesSource.includes(".themed-select-dialog.is-closing")
 ) {
   throw new Error("Dialog layers must preserve page position and animate smoothly when dismissed.");
+}
+if (
+  stylesSource.includes("body.dialog-stack-open {\n  position: fixed") ||
+  appSource.includes("document.body.style.top") ||
+  !stylesSource.includes("body.dialog-stack-open .modal") ||
+  !appSource.includes("function preventDialogBackgroundScroll(event)") ||
+  !appSource.includes('document.addEventListener("touchmove", preventDialogBackgroundScroll') ||
+  !appSource.includes('document.addEventListener("wheel", preventDialogBackgroundScroll')
+) {
+  throw new Error("Dialog scroll lock must not create a fixed-body safe-area block on mobile.");
 }
 if (!stylesSource.includes(':root[data-theme="pitch-black"]') || !stylesSource.includes('--bg: #000000')) {
   throw new Error("Pitch Black must use a pure black application background.");
