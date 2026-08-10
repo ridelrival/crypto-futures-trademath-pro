@@ -40,6 +40,7 @@
   --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
   --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --theme-speed: 115ms;
   --radius: 16px;
   --radius-sm: 11px;
   font-family:
@@ -135,9 +136,9 @@ html {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  background: var(--system-bar-bg);
+  background: var(--bg);
   scroll-behavior: smooth;
-  transition: background-color 180ms ease;
+  transition: background-color var(--theme-speed) ease-out;
 }
 
 body {
@@ -151,7 +152,9 @@ body {
   color: var(--text);
   font-size: 15px;
   line-height: 1.5;
-  transition: background-color 180ms ease, color 180ms ease;
+  transition:
+    background-color var(--theme-speed) ease-out,
+    color var(--theme-speed) ease-out;
 }
 
 /*
@@ -170,7 +173,30 @@ body::before {
   height: var(--app-safe-top);
   pointer-events: none;
   background: var(--system-bar-bg);
-  transition: background-color 180ms ease;
+  transition: background-color var(--theme-speed) ease-out;
+}
+
+.panel,
+.results-panel,
+.result-details,
+.technical-note,
+.metric-card,
+.input-shell,
+input,
+select,
+.themed-select-trigger,
+.prefix,
+.suffix,
+.attention-banner,
+.modal,
+.modal-header,
+.settings-option,
+.theme-option {
+  transition:
+    background-color var(--theme-speed) ease-out,
+    border-color var(--theme-speed) ease-out,
+    color var(--theme-speed) ease-out,
+    box-shadow var(--theme-speed) ease-out;
 }
 
 button,
@@ -254,9 +280,9 @@ a {
   box-shadow: 0 calc(-1 * var(--app-safe-top)) 0 var(--system-bar-bg);
   backdrop-filter: blur(16px);
   transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+    background-color var(--theme-speed) ease-out,
+    border-color var(--theme-speed) ease-out,
+    box-shadow var(--theme-speed) ease-out;
 }
 
 .brand {
@@ -1604,6 +1630,7 @@ details[open] > summary .summary-arrow {
 html.dialog-stack-open {
   overflow: hidden;
   overscroll-behavior: none;
+  scrollbar-gutter: stable;
 }
 
 html.dialog-scroll-restoring {
@@ -1611,11 +1638,15 @@ html.dialog-scroll-restoring {
 }
 
 body.dialog-stack-open {
-  position: fixed;
-  right: 0;
-  left: 0;
+  position: relative;
   width: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body.dialog-stack-open .modal {
+  touch-action: pan-y;
 }
 
 .modal.dialog-covered {

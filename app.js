@@ -243,12 +243,15 @@
   }
 
   function syncSystemBars(theme) {
-    const color =
-      theme === "light" ? "#ffffff" : theme === "pitch-black" ? "#000000" : "#0c0e0f";
-    document.documentElement.style.backgroundColor = color;
+    const canvasColor =
+      theme === "light" ? "#f2f5f7" : theme === "pitch-black" ? "#000000" : "#0c0e0f";
+    document.documentElement.style.backgroundColor = canvasColor;
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", color);
+      ?.setAttribute("content", canvasColor);
+    document
+      .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+      ?.setAttribute("content", theme === "light" ? "default" : "black-translucent");
 
     if (!window.Capacitor?.isNativePlatform?.()) return;
     const systemBars =
@@ -378,41 +381,6 @@
       window.scrollTo(Number(snapshot.scrollX) || 0, Number(snapshot.scrollY) || 0);
     });
     return snapshot.reason || "refresh";
-  }
-
-  function iosStandaloneContext() {
-    if (window.Capacitor?.isNativePlatform?.()) return null;
-    const userAgent = window.navigator.userAgent || "";
-    const isTouchMac =
-      window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
-    const isIosDevice = /iPhone|iPad|iPod/i.test(userAgent) || isTouchMac;
-    if (!isIosDevice) return null;
-
-    const installed =
-      window.navigator.standalone === true ||
-      window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
-      window.matchMedia?.("(display-mode: fullscreen)")?.matches === true;
-    if (!installed) return null;
-
-    const osMatch = userAgent.match(/(?:CPU (?:iPhone )?OS|iPhone OS) (\d+)[._]/i);
-    const safariMatch = userAgent.match(/Version\/(\d+)(?:\.|\s)/i);
-    const major = Number(osMatch?.[1] || safariMatch?.[1]);
-    return { major: Number.isFinite(major) ? major : null };
-  }
-
-  function shouldReloadIosPwaForTheme() {
-    const context = iosStandaloneContext();
-    if (!context) return false;
-    return context.major === null || (context.major >= 18 && context.major <= 26);
-  }
-
-  function reloadIosPwaForTheme(theme) {
-    captureRefreshState("theme");
-    const url = new URL(window.location.href);
-    url.searchParams.set("v", "59");
-    url.searchParams.set("theme", theme);
-    url.searchParams.set("theme-reload", Date.now().toString(36));
-    window.location.replace(url.toString());
   }
 
   async function refreshApplicationData() {
@@ -1599,7 +1567,6 @@
     dialogScrollY = window.scrollY;
     document.documentElement.classList.add("dialog-stack-open");
     document.body.classList.add("dialog-stack-open");
-    document.body.style.top = `-${dialogScrollY}px`;
   }
 
   function restoreDialogScroll() {
@@ -1608,7 +1575,6 @@
     root.classList.add("dialog-scroll-restoring");
     root.classList.remove("dialog-stack-open");
     document.body.classList.remove("dialog-stack-open");
-    document.body.style.top = "";
     window.scrollTo({ left: 0, top: dialogScrollY, behavior: "auto" });
     dialogScrollRestoreFrame = window.requestAnimationFrame(() => {
       window.scrollTo({ left: 0, top: dialogScrollY, behavior: "auto" });
@@ -1681,6 +1647,23 @@
     clearPointerFocus();
   }
 
+  function preventDialogBackgroundScroll(event) {
+    const openDialogs = Array.from(document.querySelectorAll("dialog[open]"));
+    const activeDialog = openDialogs[openDialogs.length - 1];
+    if (!activeDialog) return;
+
+    const scrollSurface =
+      activeDialog.id === "themedSelectDialog" ? $("themedSelectList") : activeDialog;
+    const point = event.touches?.[0] || event;
+    const rect = scrollSurface.getBoundingClientRect();
+    const insideSurface =
+      point.clientX >= rect.left &&
+      point.clientX <= rect.right &&
+      point.clientY >= rect.top &&
+      point.clientY <= rect.bottom;
+    if (!insideSurface) event.preventDefault();
+  }
+
   function setupDialogs() {
     $("settingsButton").addEventListener("click", () => {
       syncSettingsValues();
@@ -1718,12 +1701,8 @@
     document.querySelectorAll("[data-theme-option]").forEach((button) => {
       button.addEventListener("click", () => {
         const nextTheme = button.dataset.themeOption;
-        const previousTheme = document.documentElement.dataset.theme || "dark";
         applyTheme(nextTheme);
         closeDialog("themeDialog");
-        if (nextTheme !== previousTheme && shouldReloadIosPwaForTheme()) {
-          window.requestAnimationFrame(() => reloadIosPwaForTheme(nextTheme));
-        }
       });
     });
     document.querySelectorAll("[data-close-dialog]").forEach((button) => {
@@ -1751,6 +1730,14 @@
         }
         closeDialog(dialog.id);
       });
+    });
+    document.addEventListener("wheel", preventDialogBackgroundScroll, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener("touchmove", preventDialogBackgroundScroll, {
+      capture: true,
+      passive: false,
     });
   }
 
