@@ -409,7 +409,7 @@
   function reloadIosPwaForTheme(theme) {
     captureRefreshState("theme");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "58");
+    url.searchParams.set("v", "59");
     url.searchParams.set("theme", theme);
     url.searchParams.set("theme-reload", Date.now().toString(36));
     window.location.replace(url.toString());
@@ -1400,14 +1400,13 @@
       );
     }
 
-    dialog.style.width = `${width}px`;
-    dialog.style.maxHeight = `${maxHeight}px`;
+    dialog.style.setProperty("--themed-select-width", `${width}px`);
+    dialog.style.setProperty("--themed-select-left", `${left}px`);
+    dialog.style.setProperty("--themed-select-top", `${top}px`);
     dialog.style.setProperty(
       "--themed-select-list-max-height",
-      `${Math.max(120, maxHeight - 12)}px`,
+      `${Math.max(120, maxHeight)}px`,
     );
-    dialog.style.left = `${left}px`;
-    dialog.style.top = `${top}px`;
   }
 
   function syncThemedSelect(select) {
@@ -1437,10 +1436,9 @@
         ?.setAttribute("aria-expanded", "false");
     }
     const dialog = $("themedSelectDialog");
-    dialog.style.removeProperty("width");
-    dialog.style.removeProperty("max-height");
-    dialog.style.removeProperty("left");
-    dialog.style.removeProperty("top");
+    dialog.style.removeProperty("--themed-select-width");
+    dialog.style.removeProperty("--themed-select-left");
+    dialog.style.removeProperty("--themed-select-top");
     dialog.style.removeProperty("--themed-select-list-max-height");
     dialog.classList.remove("is-closing");
     activeSelectControl = null;
