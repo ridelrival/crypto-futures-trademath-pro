@@ -64,6 +64,7 @@ if (!/<option value="okx" selected>/.test(html)) {
 }
 for (const id of [
   "advancedToggle",
+  "attentionPanel",
   "exchangeExecutionPanel",
   "exitPlanPanel",
   "stopTriggerSource",
@@ -93,6 +94,9 @@ if (!/<details id="exchangeExecutionPanel" class="panel exchange-panel" open>/.t
 }
 if (!/<details id="exitPlanPanel" class="panel targets-panel" open>/.test(html)) {
   throw new Error("Exit plan must be expanded by default for new users.");
+}
+if (!/<details id="attentionPanel" class="attention-banner"[^>]* open>/.test(html)) {
+  throw new Error("Attention must be expanded by default for new users.");
 }
 if (html.includes('id="allocationTotal"')) {
   throw new Error("The redundant total-allocation badge must be replaced by the Exit plan arrow.");
@@ -140,6 +144,18 @@ if (!appSource.includes('const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-op
 }
 if (!appSource.includes('const EXIT_PLAN_PANEL_KEY = "trademath-exit-plan-panel-open"')) {
   throw new Error("Exit plan state must persist between sessions.");
+}
+if (
+  !appSource.includes('const ATTENTION_PANEL_KEY = "trademath-attention-panel-open"') ||
+  !appSource.includes("restoreAttentionPanelState")
+) {
+  throw new Error("Attention panel state must persist between sessions.");
+}
+if (
+  !appSource.includes('titleKey: "maxEstimatedLeverageWarning"') ||
+  !appSource.includes("enteredLeverage > maximumEstimatedLeverage")
+) {
+  throw new Error("The max estimated leverage UI warning must lead the warning stack when exceeded.");
 }
 if (appSource.includes("CORE_RESULTS_PANEL_KEY") || appSource.includes("restoreResultsPanelState")) {
   throw new Error("Core Results must remain permanently open rather than restoring a collapsed state.");
