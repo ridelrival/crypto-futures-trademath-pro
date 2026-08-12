@@ -11,6 +11,7 @@
   const INSTRUMENT_KEY = "trademath-last-instrument";
   const EXIT_PLAN_PANEL_KEY = "trademath-exit-plan-panel-open";
   const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open";
+  const ATTENTION_PANEL_KEY = "trademath-attention-panel-open";
   const ADVANCED_RESULTS_PANEL_KEY = "trademath-advanced-results-panel-open";
   const REFRESH_STATE_KEY = "trademath-refresh-state-v1";
 
@@ -626,6 +627,12 @@
     panel.open = localStorage.getItem(EXCHANGE_PANEL_KEY) !== "closed";
   }
 
+  function restoreAttentionPanelState() {
+    const panel = $("attentionPanel");
+    if (!panel) return;
+    panel.open = localStorage.getItem(ATTENTION_PANEL_KEY) !== "closed";
+  }
+
   function arrangeInputPanels() {
     if (document.getElementById("inputPrimaryStack")) return;
 
@@ -887,9 +894,27 @@
   function renderAlerts(result) {
     const alerts = $("alerts");
     alerts.replaceChildren();
+    const enteredLeverage = numeric(elements.leverage.value);
+    const maximumEstimatedLeverage = result.values?.maximumEstimatedLeverage;
+    const maximumLeverageIssue =
+      finite(maximumEstimatedLeverage) &&
+      maximumEstimatedLeverage > 0 &&
+      enteredLeverage > maximumEstimatedLeverage + 1e-9
+        ? {
+            type: "warning",
+            titleKey: "maxEstimatedLeverageWarning",
+            bodyKey: "maxEstimatedLeverageWarningBody",
+            vars: { entered: enteredLeverage, max: maximumEstimatedLeverage },
+          }
+        : null;
+    const remainingWarningSlots = Math.max(
+      0,
+      4 - (maximumLeverageIssue ? 1 : 0) - result.errors.length,
+    );
     const combined = [
+      ...(maximumLeverageIssue ? [maximumLeverageIssue] : []),
       ...result.errors,
-      ...result.warnings.slice(0, Math.max(0, 4 - result.errors.length)),
+      ...result.warnings.slice(0, remainingWarningSlots),
     ];
     if (combined.length < 4 && result.info.length) combined.push(result.info[0]);
 
@@ -1867,6 +1892,9 @@
     $("exchangeExecutionPanel").addEventListener("toggle", (event) => {
       localStorage.setItem(EXCHANGE_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
     });
+    $("attentionPanel").addEventListener("toggle", (event) => {
+      localStorage.setItem(ATTENTION_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
+    });
     $("exitPlanPanel").addEventListener("toggle", (event) => {
       localStorage.setItem(EXIT_PLAN_PANEL_KEY, event.currentTarget.open ? "open" : "closed");
     });
@@ -1921,6 +1949,7 @@
     setupThemedSelects();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
     syncSettingsValues();
+    restoreAttentionPanelState();
     restoreExitPlanPanelState();
     restoreExchangePanelState();
     restoreAdvancedResultsPanelState();
