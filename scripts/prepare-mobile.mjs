@@ -17,6 +17,8 @@ const bundledPaths = [
   "app.js",
   "calculator.js",
   "contract-specs.js",
+  "exchange-max-leverage.js",
+  "exchange-fee-rates.js",
   "exchange-presets.js",
   "i18n.js",
   "manifest.webmanifest",

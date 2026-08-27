@@ -9,6 +9,8 @@ const required = [
   "app.js",
   "calculator.js",
   "contract-specs.js",
+  "exchange-max-leverage.js",
+  "exchange-fee-rates.js",
   "exchange-presets.js",
   "i18n.js",
   "manifest.webmanifest",
@@ -34,6 +36,8 @@ for (const reference of [
   "./manifest.webmanifest",
   "./styles.css",
   "./contract-specs.js",
+  "./exchange-max-leverage.js",
+  "./exchange-fee-rates.js",
   "./app.js",
 ]) {
   if (!html.includes(reference)) throw new Error(`index.html is missing ${reference}`);
@@ -59,6 +63,16 @@ if (!/<input id="symbol" name="symbol" type="hidden" value="COIN"/.test(html)) {
 if (html.includes('data-i18n="symbol"')) {
   throw new Error("The visible Symbol parameter must be removed.");
 }
+if (
+  !html.includes('id="exchangeMaxLeverageCard"') ||
+  !html.includes('id="exchangeMaxLeverageValue"') ||
+  !html.includes('id="exchangeMaxLeverageStatus"')
+) {
+  throw new Error("The read-only exchange max leverage display is missing.");
+}
+if (html.indexOf('id="instrumentSymbol"') > html.indexOf('id="balance"')) {
+  throw new Error("TICKER must appear above Account Balance in Parameters.");
+}
 if (!/<option value="okx" selected>/.test(html)) {
   throw new Error("OKX must be the default exchange.");
 }
@@ -83,6 +97,7 @@ for (const id of [
   "settingsLanguageAction",
   "settingsThemeAction",
   "settingsRefreshAction",
+  "feeRefreshButton",
   "themedSelectDialog",
   "themedSelectTitle",
   "themedSelectList",
@@ -139,6 +154,13 @@ for (const key of ["isolatedOnly", "crossUnsupported", "advancedOffBody"]) {
 }
 
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
+if (
+  !appSource.includes("TradeMathExchangeMaxLeverage") ||
+  !appSource.includes("scheduleExchangeMaxLeverageFetch") ||
+  !appSource.includes("renderExchangeMaxLeverage")
+) {
+  throw new Error("Exchange max leverage must remain an informational UI feature.");
+}
 if (!appSource.includes('const EXCHANGE_PANEL_KEY = "trademath-exchange-panel-open"')) {
   throw new Error("Exchange panel state must persist between sessions.");
 }
