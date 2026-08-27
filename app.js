@@ -5,6 +5,8 @@
   const I18n = window.TradeMathI18n;
   const Exchanges = window.TRADEMATH_EXCHANGES;
   const ContractSpecs = window.TradeMathContractSpecs;
+  const ExchangeMaxLeverage = window.TradeMathExchangeMaxLeverage;
+  const ExchangeFeeRates = window.TradeMathExchangeFeeRates;
   const HISTORY_KEY = "trademath-history-v1";
   const THEME_KEY = "trademath-theme";
   const ADVANCED_KEY = "trademath-advanced-enabled";
@@ -38,6 +40,7 @@
     stopExecution: $("stopExecution"),
     stopTriggerSource: $("stopTriggerSource"),
     targetExecution: $("targetExecution"),
+    feeRefreshButton: $("feeRefreshButton"),
     entrySlippage: $("entrySlippage"),
     stopSlippage: $("stopSlippage"),
     targetSlippage: $("targetSlippage"),
@@ -94,6 +97,9 @@
   let currentSpecs = null;
   let specsRequestId = 0;
   let specsDebounceTimer = null;
+  let exchangeMaxLeverageRequestId = 0;
+  let exchangeMaxLeverageDebounceTimer = null;
+  let exchangeMaxLeverageView = { state: "waiting" };
   let lastResult = null;
   let deferredInstallPrompt = null;
   let toastTimer = null;
@@ -314,6 +320,16 @@
     button.title = label;
   }
 
+  function syncFeeRefreshButtonLabel(refreshing = false) {
+    const button = elements.feeRefreshButton;
+    if (!button) return;
+    const label = I18n.t(refreshing ? "refreshingFees" : "refreshFees");
+    const text = button.querySelector("span:last-child");
+    if (text) text.textContent = label;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+
   function captureRefreshState(reason = "refresh") {
     const controls = {};
     Array.from(form.elements).forEach((control) => {
@@ -377,6 +393,7 @@
       clearContractSpecs(true);
       scheduleSpecsFetch(true);
     }
+    scheduleExchangeMaxLeverageFetch();
 
     window.requestAnimationFrame(() => {
       window.scrollTo(Number(snapshot.scrollX) || 0, Number(snapshot.scrollY) || 0);
@@ -404,12 +421,168 @@
     window.location.reload();
   }
 
+  async function refreshExchangeFees() {
+    const button = elements.feeRefreshButton;
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.classList.add("refreshing");
+    button.setAttribute("aria-busy", "true");
+    button.removeAttribute("data-error");
+    syncFeeRefreshButtonLabel(true);
+
+    try {
+      const result = await ExchangeFeeRates?.fetchPublicFeeRates(contractContext());
+      if (!result?.available) {
+        const key =
+          result?.reason === "ticker-required"
+            ? "feesTickerRequired"
+            : result?.reason === "custom"
+              ? "feesCustomRetained"
+              : "feesPublicUnavailable";
+        showToast(I18n.t(key));
+        return;
+      }
+
+      const exchange = currentExchange();
+      const baseTier = exchange.tiers[0];
+      const baseTierSelected = Boolean(baseTier && elements.feeTier.value === baseTier.id);
+      if (!baseTier) throw new Error("Exchange base fee tier is unavailable");
+
+      baseTier.maker = result.makerPercent;
+      baseTier.taker = result.takerPercent;
+      if (baseTierSelected) applyFeeTier();
+
+      $("feeSourceText").textContent = result.sourceLabel || exchange.sourceLabel;
+      const sourceLink = $("feeSourceLink");
+      sourceLink.classList.toggle("is-hidden", !result.source);
+      if (result.source) sourceLink.href = result.source;
+
+      showToast(
+        I18n.t(baseTierSelected ? "feesRefreshed" : "feesBaseRefreshed", {
+          maker: formatNumber(result.makerPercent, 4, 4),
+          taker: formatNumber(result.takerPercent, 4, 4),
+        }),
+      );
+    } catch (error) {
+      showToast(I18n.t("feesRefreshFailed"));
+      button.dataset.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      button.disabled = false;
+      button.classList.remove("refreshing");
+      button.removeAttribute("aria-busy");
+      syncFeeRefreshButtonLabel();
+    }
+  }
+
   function contractContext() {
     return {
       exchangeId: currentExchangeId(),
       symbolBase: elements.instrumentSymbol.value,
       quoteCurrency: elements.quoteCurrency.value,
     };
+  }
+
+  function renderExchangeMaxLeverage(view = exchangeMaxLeverageView) {
+    exchangeMaxLeverageView = view;
+    const card = $("exchangeMaxLeverageCard");
+    const value = $("exchangeMaxLeverageValue");
+    const status = $("exchangeMaxLeverageStatus");
+    const source = $("exchangeMaxLeverageSource");
+    if (!card || !value || !status || !source) return;
+
+    const state = view.state || "waiting";
+    card.className = `exchange-max-leverage-card ${state}`;
+    card.title = I18n.t("exchangeMaxLeverageNote");
+    card.removeAttribute("data-error");
+    source.classList.toggle("is-hidden", !view.source);
+    if (view.source) source.href = view.source;
+    else source.removeAttribute("href");
+
+    if (state === "loading") {
+      value.textContent = "…";
+      status.textContent = I18n.t("exchangeMaxLeverageChecking", {
+        exchange: currentExchange().name,
+      });
+      return;
+    }
+
+    if (state === "live" || state === "cached") {
+      value.textContent = `${formatNumber(view.maximumLeverage, 0, 2)}×`;
+      if (state === "live") {
+        status.textContent = I18n.t("exchangeMaxLeverageLive", {
+          exchange: currentExchange().name,
+          symbol: view.symbol || fullSymbol(),
+        });
+      } else {
+        const fetched = view.fetchedAt
+          ? new Date(view.fetchedAt).toLocaleString(locale(), {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "—";
+        status.textContent = I18n.t("exchangeMaxLeverageCached", {
+          exchange: currentExchange().name,
+          symbol: view.symbol || fullSymbol(),
+          time: fetched,
+        });
+      }
+      return;
+    }
+
+    value.textContent = "—";
+    status.textContent = I18n.t(
+      state === "custom"
+        ? "exchangeMaxLeverageCustom"
+        : state === "unavailable"
+          ? "exchangeMaxLeverageUnavailable"
+          : "exchangeMaxLeverageEnterTicker",
+    );
+  }
+
+  function scheduleExchangeMaxLeverageFetch() {
+    window.clearTimeout(exchangeMaxLeverageDebounceTimer);
+    const requestId = ++exchangeMaxLeverageRequestId;
+    if (!instrumentBase()) {
+      renderExchangeMaxLeverage({ state: "waiting" });
+      return;
+    }
+    if (currentExchangeId() === "custom" || !ExchangeMaxLeverage?.fetchMaximumLeverage) {
+      renderExchangeMaxLeverage({ state: "custom" });
+      return;
+    }
+
+    renderExchangeMaxLeverage({ state: "loading" });
+    exchangeMaxLeverageDebounceTimer = window.setTimeout(async () => {
+      try {
+        const result = await ExchangeMaxLeverage.fetchMaximumLeverage(
+          contractContext(),
+          { force: true },
+        );
+        if (requestId !== exchangeMaxLeverageRequestId) return;
+        if (!result.available) {
+          renderExchangeMaxLeverage({
+            state: "unavailable",
+            source: result.source,
+          });
+          return;
+        }
+        renderExchangeMaxLeverage({
+          ...result,
+          state:
+            result.cached || result.stale || result.offlineFallback
+              ? "cached"
+              : "live",
+        });
+      } catch (error) {
+        if (requestId !== exchangeMaxLeverageRequestId) return;
+        renderExchangeMaxLeverage({ state: "unavailable" });
+        $("exchangeMaxLeverageCard").dataset.error =
+          error instanceof Error ? error.message : String(error);
+      }
+    }, 500);
   }
 
   function setSpecStatus(state, textKey, variables) {
@@ -762,6 +935,7 @@
     populateFeeTiers(resetTier);
     syncAdvancedControls();
     scheduleSpecsFetch();
+    scheduleExchangeMaxLeverageFetch();
   }
 
   function syncTargetState(targetNumber) {
@@ -1815,6 +1989,7 @@
           clearContractSpecs(true);
           scheduleSpecsFetch();
         }
+        scheduleExchangeMaxLeverageFetch();
         syncFundingControls();
       }
       if (event.target === elements.makerFee || event.target === elements.takerFee) {
@@ -1913,6 +2088,7 @@
     elements.tp3Enabled.addEventListener("change", () => handleTargetToggle(3));
     $("resetButton").addEventListener("click", resetForm);
     $("refreshButton").addEventListener("click", refreshApplicationData);
+    elements.feeRefreshButton?.addEventListener("click", refreshExchangeFees);
     $("saveDraftButton").addEventListener("click", () => saveRecord("draft"));
     $("saveTradeButton").addEventListener("click", () => saveRecord("planned"));
     $("downloadPlanButton").addEventListener("click", downloadCurrentPlan);
@@ -1936,7 +2112,9 @@
       applyTheme(document.documentElement.dataset.theme || "dark", false);
       syncSettingsValues();
       syncRefreshButtonLabel();
+      syncFeeRefreshButtonLabel();
       syncAdvancedControls();
+      renderExchangeMaxLeverage();
       calculateAndRender();
     });
   }
@@ -1945,6 +2123,7 @@
     I18n.apply();
     setupInputModality();
     syncRefreshButtonLabel();
+    syncFeeRefreshButtonLabel();
     arrangeInputPanels();
     setupThemedSelects();
     applyTheme(localStorage.getItem(THEME_KEY) || "dark", false);
